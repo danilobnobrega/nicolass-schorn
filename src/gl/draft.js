@@ -214,6 +214,9 @@ export class Draft {
       const Hm = g.measureText('H');
       info.push({ ln, base, xh: base - xm.actualBoundingBoxAscent, cap: base - Hm.actualBoundingBoxAscent, right: padX + m.width });
     });
+    this.mask = g.getImageData(0, 0, c.width, c.height).data.filter((_, i) => i % 4 === 3);
+    this.maskW = c.width;
+    this.maskH = c.height;
     this.hidden = true;
     sdfTexture(c).then((t) => {
       this.sdf?.dispose();
@@ -333,25 +336,57 @@ export class Draft {
     this.numTex?.dispose();
     this.numTex = canvasTex(c, { srgb: false, mips: false });
     this.mat.uniforms.uNums.value = this.numTex;
-    this.layers = [0, 1, 2].map(() => this.shuffle());
+    this.layers = [];
+    for (let i = 0; i < 3; i++) this.layers[i] = this.shuffle(i);
     this.phase = [0, 0, 0];
     this.drawNums();
   }
 
-  shuffle() {
+  // a fresh set of figures for one layer: each one placed only where it touches
+  // neither a letter nor any figure of the other two layers
+  shuffle(layer) {
     const R = Math.random;
     const pick = (a) => a[Math.floor(R() * a.length)];
     const fmt = (v, d = 1) => v.toFixed(d).replace('.', ',');
+    const g = this.numCanvas.getContext('2d');
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.font = `500 10px ${SANS}`;
+    g.letterSpacing = '0.8px';
+    const taken = [];
+    (this.layers || []).forEach((l, i) => i !== layer && l && taken.push(...l.map((it) => it.box)));
+    const free = (bx) => {
+      for (const o of taken) if (bx[0] < o[2] + 14 && bx[2] > o[0] - 14 && bx[1] < o[3] + 8 && bx[3] > o[1] - 8) return false;
+      // no ink of the sentence under the figure
+      const k = this.numK,
+        m = this.mask,
+        mw = this.maskW;
+      for (let y = bx[1] - 2; y <= bx[3] + 2; y += 2)
+        for (let x = bx[0] - 3; x <= bx[2] + 3; x += 2) {
+          const xi = Math.round(x * k),
+            yi = Math.round(y * k);
+          if (xi < 0 || yi < 0 || xi >= mw || yi >= this.maskH || m[yi * mw + xi] > 8) return false;
+        }
+      return true;
+    };
     const items = [];
     this.info.forEach((o) => {
       const w = o.right - this.padX;
-      // the measure of the line, never quite the same twice
-      if (R() < 0.6) items.push({ x: this.padX + w * (0.3 + R() * 0.4), y: o.cap - 18.5, s: `${fmt(w * 0.2646 * (0.97 + R() * 0.06))} mm`, c: 1 });
-      for (let n = 0; n < 3; n++) {
-        const y = pick([o.cap - 9, o.base + 15, o.xh - 5]);
-        const kind = Math.floor(R() * 5);
-        const s = [`R ${fmt(4 + R() * 30)}`, `Ø ${fmt(10 + R() * 60)}`, `${Math.round(10 + R() * 80)}°`, fmt(R() * 2, 3), `${fmt(R() * 40)} pt`][kind];
-        items.push({ x: this.padX + R() * w, y, s, c: 0 });
+      const wanted = R() < 0.5 ? 2 : 1;
+      let placed = 0;
+      for (let tries = 0; tries < 14 && placed < wanted; tries++) {
+        const measure = tries === 0 && R() < 0.5;
+        const s = measure
+          ? `${fmt(w * 0.2646 * (0.97 + R() * 0.06))} mm`
+          : [`R ${fmt(4 + R() * 30)}`, `Ø ${fmt(10 + R() * 60)}`, `${Math.round(10 + R() * 80)}°`, fmt(R() * 2, 3), `${fmt(R() * 40)} pt`][Math.floor(R() * 5)];
+        const x = measure ? this.padX + w * (0.3 + R() * 0.4) : this.padX + R() * (w - 50);
+        const y = measure ? o.cap - 18.5 : pick([o.cap - 9, o.base + 15, o.xh - 5]);
+        const tw = g.measureText(s).width;
+        const x0 = measure ? x - tw / 2 : x;
+        const box = [x0, y - 8, x0 + tw, y + 2];
+        if (!free(box)) continue;
+        items.push({ x, y, s, c: measure ? 1 : 0, box });
+        taken.push(box);
+        placed++;
       }
     });
     return items;
@@ -395,7 +430,7 @@ export class Draft {
       for (let i = 0; i < 3; i++) {
         const ph = (S.time / 5.4 + i / 3) % 1;
         if (ph < this.phase[i]) {
-          this.layers[i] = this.shuffle();
+          this.layers[i] = this.shuffle(i);
           dirty = true;
         }
         this.phase[i] = ph;
