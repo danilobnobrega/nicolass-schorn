@@ -10,7 +10,7 @@ import { quad, clamp, GLSL_COMMON } from './core.js';
  * is dark and glossy; it dries to a satin metal that sparkles under the cursor's light.
  */
 const NIB = (38 * Math.PI) / 180;
-const SPEED = 58; // glyph units per second
+const SPEED = 230; // glyph units per second
 
 function parse(d) {
   return d
@@ -167,7 +167,7 @@ export class Ink {
         const prev = strokes[si - 1];
         const a = prev[prev.length - 1],
           b = s[0];
-        T += 0.12 + Math.hypot(b[0] - a[0], b[1] - a[1]) / (SPEED * 6);
+        T += 0.04 + Math.hypot(b[0] - a[0], b[1] - a[1]) / (SPEED * 8);
 
       }
       const out = s.map((p, i) => {

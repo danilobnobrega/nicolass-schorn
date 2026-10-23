@@ -13,7 +13,7 @@ precision highp float;
 varying vec2 vUv;
 uniform sampler2D uSDF;
 uniform vec2 uRes, uLight;
-uniform float uK, uSlotH, uTime;
+uniform float uK, uSlotH, uTime, uZ;
 uniform vec4 uRows[${N}];    // x, y, w, h of each title in px (view space, y down)
 uniform float uRelief[${N}], uActive[${N}];
 ${GLSL_COMMON}
@@ -37,8 +37,8 @@ float sdfAt(vec2 px, out int row){
   return row < 0 ? 1e4 : sdfRow(px, row);
 }
 float heightRow(vec2 px, int i){
-  float s = clamp(-sdfRow(px, i) / 9., 0., 1.);
-  return uRelief[i] * 16. * sqrt(s * (2. - s));
+  float s = clamp(-sdfRow(px, i) / (9. * uZ), 0., 1.);
+  return uRelief[i] * 16. * uZ * sqrt(s * (2. - s));
 }
 
 void main(){
@@ -62,13 +62,13 @@ void main(){
     vec2 dir = normalize(Lp.xy - px);
     float dist2 = length(Lp.xy - px);
     float slope = (Lp.z - h) / max(dist2, 1.);
-    float s = 2.;
+    float s = 2. * uZ;
     for (int k = 0; k < 22; k++){
       float hr = h + s * slope;
       float hs = heightRow(px + dir * s, R);
-      sh = min(sh, smoothstep(-(1.5 + s * .18), 0., hr - hs));
-      s += 2. + s * .12;
-      if (s > 70.) break;
+      sh = min(sh, smoothstep(-(1.5 * uZ + s * .18), 0., hr - hs));
+      s += 2. * uZ + s * .12;
+      if (s > 70. * uZ) break;
     }
     sh = mix(1., sh, rel);
   }
@@ -125,6 +125,7 @@ export class Relief {
         uK: { value: 1.5 },
         uSlotH: { value: 1 },
         uTime: { value: 0 },
+        uZ: { value: 1 },
         uRows: { value: titles.map(() => new THREE.Vector4()) },
         uRelief: { value: titles.map(() => 0) },
         uActive: { value: titles.map(() => 0) },
@@ -144,7 +145,7 @@ export class Relief {
     if (W === this.W && Hs === this.Hs) return;
     this.W = W;
     this.Hs = Hs;
-    const k = 1.5;
+    const k = Math.min(3, Math.max(1.5, 150 / parseFloat(getComputedStyle(this.titles[0]).fontSize)));
     const slot = Math.ceil(Hs * k);
     const c = document.createElement('canvas');
     c.width = Math.ceil(W * k);
@@ -171,6 +172,8 @@ export class Relief {
       this.hidden = false;
     });
     u.uK.value = k;
+    // relief depth follows the type size (tuned at ~104px)
+    u.uZ.value = Math.max(0.35, size / 104);
     u.uSlotH.value = slot;
   }
 

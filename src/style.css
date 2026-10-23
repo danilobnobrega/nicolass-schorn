@@ -87,17 +87,13 @@ a:hover .swap > span + span, button:hover .swap > span + span { transform: trans
 
 /* 4 · work */
 .work { padding: 24vh 44px 22vh; }
-.work__list { position: relative; margin-top: 7vh; border-top: 1px solid var(--line); }
-.row { border-bottom: 1px solid var(--line); }
-.row__head { width: 100%; display: flex; align-items: center; gap: 4vw; text-align: left; padding: 2.6vh 0 2.4vh; }
-.row__head i { font-style: normal; font-size: 13px; color: var(--mute); width: 40px; transition: color 0.5s; }
-.row__title { font-family: var(--serif); font-weight: 400; font-size: 7.2vw; line-height: 0.96; letter-spacing: -0.035em; color: transparent; }
-.row__body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.9s var(--ease); }
-.row__body > div { overflow: hidden; }
-.row__body p { max-width: 520px; margin: 0 0 4vh calc(40px + 4vw); font-size: 18px; line-height: 1.6; color: #c9c1b3; opacity: 0; transform: translateY(12px); transition: opacity 0.7s var(--ease), transform 0.9s var(--ease); }
-.row.is-open .row__body { grid-template-rows: 1fr; }
-.row.is-open .row__body p { opacity: 1; transform: none; transition-delay: 0.12s; }
-.row.is-open .row__head i { color: var(--brass); }
+.work__list { position: relative; margin-top: 7vh; }
+/* same rhythm as a ranking list: title, text, label */
+.row { display: grid; grid-template-columns: minmax(120px, 0.6fr) 1fr auto; gap: clamp(16px, 2.2vw, 32px); align-items: baseline; padding: 22px 0; border-top: 1px solid var(--line); }
+.row:last-child { border-bottom: 1px solid var(--line); }
+.row__title { font-family: var(--serif); font-weight: 400; font-size: clamp(26px, 3.4vw, 54px); line-height: 1.1; letter-spacing: -0.02em; color: transparent; }
+.row__body { font-size: clamp(16px, 1.25vw, 19px); line-height: 1.5; color: #b9b1a4; max-width: 62ch; }
+.row__n { font-size: 11px; letter-spacing: .08em; color: var(--mute); }
 .work__who { margin-top: 7vh; font-size: 18px; color: var(--mute); }
 
 /* 5 · method */
@@ -125,9 +121,4 @@ a:hover .swap > span + span, button:hover .swap > span + span { transform: trans
 :focus-visible { outline: 1px solid var(--brass); outline-offset: 5px; border-radius: 4px; }
 
 /* service photo that trails the cursor */
-.peek { position: fixed; z-index: 12; left: 0; top: 0; width: 250px; height: 312px; pointer-events: none; opacity: 0; transition: opacity .45s var(--ease); }
-.peek.on { opacity: 1; }
-.peek__in { position: absolute; inset: 0; overflow: hidden; clip-path: inset(100% 0 0 0); transition: clip-path .8s var(--ease); box-shadow: 0 30px 60px -20px rgba(0,0,0,.6); }
-.peek.on .peek__in { clip-path: inset(0 0 0 0); }
-.peek img { position: absolute; inset: -6%; width: 112%; height: 112%; object-fit: cover; opacity: 0; transform: scale(1.12); transition: opacity .6s var(--ease), transform 1.2s var(--ease); }
-.peek img.cur { opacity: 1; transform: scale(1); }
+.premio-img { position: fixed; z-index: 40; left: 0; top: 0; width: 260px; aspect-ratio: 4 / 3; object-fit: cover; pointer-events: none; opacity: 0; transform: translate(-50%, -50%) scale(0.85); transition: opacity 0.35s var(--ease); }

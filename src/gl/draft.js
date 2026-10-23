@@ -79,8 +79,8 @@ void main(){
   float lineV = 1. - smoothstep(0., 1., g.x), lineH = 1. - smoothstep(0., 1., g.y);
   float hv = hash12(vec2(cell.x, 1.)), hh = hash12(vec2(2., cell.y));
   float y01 = px.y / uRes.y;
-  float inV = step(y01, uP * 2.6 - hv * .9) * step(uP * 1.9 - 1.25 - hv * .35, y01);
-  float inH = step(x01, uP * 2.6 - hh * .9) * step(uP * 1.9 - 1.25 - hh * .35, x01);
+  float inV = step(y01, uP * 2.6 - hv * .9) * step(uP * 2.6 - 1.4 - hv * .2, y01);
+  float inH = step(x01, uP * 2.6 - hh * .9) * step(uP * 2.6 - 1.4 - hh * .2, x01);
   float grid = max(lineV * inV, lineH * inH) * .055;
   // inside the lens the grid is alive: it slides, and its dashes run
   vec2 gp = px + vec2(uTime * 9., uTime * -6.);
@@ -319,8 +319,10 @@ export class Draft {
   update(r, on) {
     if (!on) return;
     const S = this.S;
-    const target = clamp((S.h * 0.9 - r.top) / (S.h * 0.85));
-    this.p = damp(this.p, target, 4, S.dt);
+    // once the sentence is well in view the drawing plays through on its own clock,
+    // in one continuous gesture, so scrolling and the lens never fight over it
+    if (this.t0 == null && r.top < S.h * 0.62) this.t0 = S.time;
+    this.p = this.t0 == null ? 0 : clamp((S.time - this.t0) / 4.2);
     const u = this.mat.uniforms;
     u.uP.value = this.p;
     u.uTime.value = S.time;
@@ -337,7 +339,7 @@ export class Draft {
     tu.uVel.value.set(vel.x, vel.y);
     tu.uDt.value = S.dt;
     tu.uTime.value = S.time;
-    this.on += ((this.hover ? 1 : 0) - this.on) * (1 - Math.exp(-10 * S.dt));
+    this.on += ((this.hover && this.p >= 1 ? 1 : 0) - this.on) * (1 - Math.exp(-10 * S.dt));
     tu.uOn.value = this.on;
   }
 

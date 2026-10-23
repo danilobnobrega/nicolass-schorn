@@ -1,5 +1,4 @@
 import * as THREE from 'three';
-import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
 import { quad, clamp, damp, ease, smooth, Spring, GLSL_COMMON, DISPLAY, SANS, wrap, seamUniform, setSeam } from './core.js';
 
 /*
@@ -170,9 +169,6 @@ export class Sheets {
       return { g, geo, base, t: -1, lift: 0, ls: new Spring(0, 60, 9) };
     });
 
-    this.pen = this.makePen();
-    scene.add(this.pen);
-
     this.rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
     this.post = quad(
       new THREE.ShaderMaterial({
@@ -186,38 +182,6 @@ export class Sheets {
     this.deskPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
     this.tmp = new THREE.Vector3();
     this.resize();
-  }
-
-  // a fountain pen left beside the dossier: black lacquer, brass fittings
-  makePen() {
-    const g = new THREE.Group();
-    const lacquer = new THREE.MeshPhysicalMaterial({ color: 0x050404, roughness: 0.4, clearcoat: 0.6, clearcoatRoughness: 0.15 });
-    const brass = new THREE.MeshStandardMaterial({ color: 0xc9a066, metalness: 1, roughness: 0.28 });
-    this.penMats = [lacquer, brass];
-    const add = (geo, mat, x) => {
-      const m = new THREE.Mesh(geo, mat);
-      m.rotation.z = Math.PI / 2;
-      m.position.x = x;
-      m.castShadow = m.receiveShadow = true;
-      g.add(m);
-      return m;
-    };
-    add(new THREE.CylinderGeometry(0.019, 0.016, 0.3, 40), lacquer, 0);
-    add(new THREE.CylinderGeometry(0.021, 0.021, 0.16, 40), lacquer, 0.2);
-    add(new THREE.CylinderGeometry(0.0215, 0.0215, 0.016, 40), brass, 0.13);
-    add(new THREE.CylinderGeometry(0.0215, 0.0215, 0.006, 40), brass, 0.275);
-    add(new THREE.SphereGeometry(0.021, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), lacquer, 0.28).rotation.z = -Math.PI / 2;
-    add(new THREE.CylinderGeometry(0.016, 0.011, 0.04, 32), lacquer, -0.17);
-    add(new THREE.ConeGeometry(0.011, 0.06, 24), brass, -0.218).rotation.z = Math.PI / 2;
-    // the clip
-    const clip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.004, 0.008), brass);
-    clip.position.set(0.21, 0.024, 0);
-    clip.castShadow = true;
-    g.add(clip);
-    g.position.set(1.36, 0.03, 0.12);
-    g.rotation.y = 1.15;
-    g.scale.setScalar(1.45);
-    return g;
   }
 
   resize() {
@@ -273,15 +237,11 @@ export class Sheets {
     this.P = damp(this.P, target, 4.5, S.dt);
     this.mx = damp(this.mx, (S.mouse.x / S.w) * 2 - 1, 3, S.dt);
     this.my = damp(this.my, (S.mouse.y / S.h) * 2 - 1, 3, S.dt);
-    // choreography: lean in to read each page, rise to watch it turn
+    // the camera frames the closed dossier, then the open spread
     const open = clamp(this.P);
-    const f = this.P - Math.floor(this.P);
-    const turning = Math.sin(Math.PI * f);
-    const reading = (1 - turning) * smooth(0.02, 0.5, this.P);
-    this.read = damp(this.read ?? 0, reading, 3, S.dt);
-    const cx = open < 1 ? 0.5 - open * 0.5 + 0.5 * this.read * open : 0.5 * this.read;
-    this.cam.position.set(cx + this.mx * 0.2, 3.75 - this.read * 1.05 - open * 0.1, 1.3 - this.read * 0.25 + this.my * 0.12);
-    this.cam.lookAt(cx, 0, 0.04 + this.read * 0.06);
+    const cx = 0.5 - open * 0.5;
+    this.cam.position.set(cx + this.mx * 0.2, 3.75 - open * 0.12, 1.3 + this.my * 0.12);
+    this.cam.lookAt(cx, 0, 0.06);
     this.cam.updateMatrixWorld();
 
     // where the cursor points on the desk
@@ -315,15 +275,6 @@ export class Sheets {
   }
 
   prerender(renderer) {
-    if (!this.env) {
-      const pm = new THREE.PMREMGenerator(renderer);
-      this.env = pm.fromScene(new RoomEnvironment(), 0.04).texture;
-      this.penMats.forEach((m) => {
-        m.envMap = this.env;
-        m.envMapIntensity = 0.35;
-        m.needsUpdate = true;
-      });
-    }
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.setRenderTarget(this.rt);

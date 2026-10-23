@@ -170,8 +170,15 @@ function plateCanvas({ top, big, small }) {
   g.fillText(big, W / 2, H * (top ? 0.575 : 0.56));
   // labels: brass letters left standing in a black enamel band, readable in any reflection
   const band = (text, y) => {
-    g.font = `700 36px ${SANS}`;
+    // shrink long labels so the band always sits clear of the inset rule
+    let fs = 36;
+    g.font = `700 ${fs}px ${SANS}`;
     g.letterSpacing = '8px';
+    while (g.measureText(text).width + 64 > W - 300 && fs > 22) {
+      fs -= 1;
+      g.font = `700 ${fs}px ${SANS}`;
+      g.letterSpacing = `${(fs * 8) / 36}px`;
+    }
     const w = g.measureText(text).width + 64;
     g.fillStyle = '#000';
     g.fillRect(W / 2 - w / 2, y - 38, w, 58);

@@ -50,44 +50,37 @@ const io = new IntersectionObserver(
 $$('[data-fade]').forEach((el) => io.observe(el));
 
 /* ───────────── service photo that trails the cursor ───────────── */
-const peek = document.createElement('div');
-peek.className = 'peek';
-peek.innerHTML = '<div class="peek__in"></div>';
-document.body.appendChild(peek);
-const peekIn = $('.peek__in', peek);
-const peekImgs = {};
-let peekOn = false;
-$$('[data-row][data-img]').forEach((row) => {
-  const src = row.dataset.img;
-  const img = new Image();
-  img.src = src;
-  img.alt = '';
-  peekIn.appendChild(img);
-  peekImgs[src] = img;
-  row.addEventListener('pointerenter', () => {
-    Object.values(peekImgs).forEach((im) => im.classList.toggle('cur', im === img));
-    peekOn = true;
-    peek.classList.add('on');
-  });
-  row.addEventListener('pointerleave', () => {
-    peekOn = false;
-    peek.classList.remove('on');
-  });
-});
-const pk = { x: innerWidth / 2, y: innerHeight / 2, r: 0 };
-function stepPeek(dt) {
-  const k = 1 - Math.pow(0.0025, dt);
-  const vx = mouse.x - pk.x;
-  pk.x += vx * k;
-  pk.y += (mouse.y - pk.y) * k;
-  pk.r += (Math.max(-10, Math.min(10, vx * 0.06)) - pk.r) * (1 - Math.pow(0.02, dt));
-  peek.style.transform = `translate(${pk.x}px, ${pk.y}px) translate(-50%, -50%) rotate(${pk.r}deg) scale(${peekOn ? 1 : 0.88})`;
-}
 const mouse = { x: innerWidth / 2, y: innerHeight / 2 };
 addEventListener('pointermove', (e) => {
   mouse.x = e.clientX;
   mouse.y = e.clientY;
 });
+const peek = document.createElement('img');
+peek.className = 'premio-img';
+peek.alt = '';
+document.body.appendChild(peek);
+let peekOn = false;
+const pk = { x: 0, y: 0 };
+$$('[data-row][data-img]').forEach((row) => {
+  new Image().src = row.dataset.img;
+  row.addEventListener('pointerenter', () => {
+    peek.src = row.dataset.img;
+    peekOn = true;
+    peek.style.opacity = '1';
+  });
+  row.addEventListener('pointerleave', () => {
+    peekOn = false;
+    peek.style.opacity = '0';
+  });
+});
+function stepPeek(dt) {
+  const k = 1 - Math.pow(0.002, dt);
+  const vx = mouse.x - pk.x;
+  pk.x += vx * k;
+  pk.y += (mouse.y - pk.y) * k;
+  const rot = Math.max(-12, Math.min(12, vx * 0.08));
+  peek.style.transform = `translate(${pk.x}px, ${pk.y}px) translate(-50%, -50%) rotate(${rot}deg) scale(${peekOn ? 1 : 0.85})`;
+}
 
 /* ───────────── webgl ───────────── */
 const S = createGL($('#gl'));
@@ -118,18 +111,6 @@ async function boot() {
   S.views.sort((a, b) => a.el.getBoundingClientRect().top + scrollY - (b.el.getBoundingClientRect().top + scrollY));
 
 }
-
-/* ───────────── rows: open on hover / click ───────────── */
-$$('[data-row]').forEach((row) => {
-  const head = $('.row__head', row);
-  const set = (v) => {
-    row.classList.toggle('is-open', v);
-    head.setAttribute('aria-expanded', String(v));
-  };
-  row.addEventListener('pointerenter', () => set(true));
-  row.addEventListener('pointerleave', () => set(false));
-  head.addEventListener('click', () => set(!row.classList.contains('is-open')));
-});
 
 let last = performance.now();
 let lastLight = false;
