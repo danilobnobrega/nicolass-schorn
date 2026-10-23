@@ -40,7 +40,8 @@ void main(){
 const FRAG = /* glsl */ `
 precision highp float;
 varying vec2 vUv;
-uniform sampler2D uSDF, uMarks, uTrail;
+uniform sampler2D uSDF, uMarks, uTrail, uNums;
+uniform vec3 uNumW;
 uniform vec2 uRes, uMouse;
 uniform float uScale, uP, uTime, uLines;
 uniform vec4 uLine[4]; // per line: base y, x-height y, cap y, right edge x (all in px, top-left origin)
@@ -102,6 +103,11 @@ void main(){
   float scan = .55 + .45 * smoothstep(.2, .9, sin(x01 * 9. - uTime * 1.4) * .5 + .5);
   mk = max(mk, m.a * lens * scan);
   col += brass * mk * (1. + head * 1.5); a += mk;
+  // measurements: three layers of figures that fade in and out of step, each one
+  // coming back with new values in new places, so the drawing never stands still
+  float nums = dot(texture2D(uNums, vUv).rgb, uNumW);
+  float nv = nums * max(drawn * erased, lens * (.75 + .25 * scan));
+  col += brass * nv * 1.15; a += nv;
 
   // outline: a hairline drawn before the letter is filled
   float reveal = smoothstep(0., .08, t);
@@ -143,6 +149,8 @@ export class Draft {
       uniforms: {
         uSDF: { value: null },
         uMarks: { value: null },
+        uNums: { value: null },
+        uNumW: { value: new THREE.Vector3() },
         uRes: { value: new THREE.Vector2() },
         uMouse: { value: new THREE.Vector2(-999, -999) },
         uScale: { value: 2 },
@@ -298,15 +306,15 @@ export class Draft {
       arrow(padX, 1);
       arrow(o.right, -1);
       m.globalAlpha = 0.75;
-      const mm = ((o.right - padX) * 0.2646).toFixed(1).replace('.', ',');
-      m.clearRect((padX + o.right) / 2 - 30, yy - 7, 60, 14);
-      label(`${mm} mm`, (padX + o.right) / 2, yy + 3.5, 'center');
       if (i === 0) {
         label('CAP', W - padX - 34, o.cap + 3.5);
         label('X', W - padX - 34, o.xh + 3.5);
         label('BASE', W - padX - 34, o.base + 3.5);
       }
     });
+    this.info = info;
+    this.padX = padX;
+    this.initNums(W, H, k);
     this.marks?.dispose();
     this.marks = canvasTex(mc, { srgb: false });
     this.mat.uniforms.uMarks.value = this.marks;
@@ -314,6 +322,61 @@ export class Draft {
     // the trail lives at a quarter of the resolution
     this.trail.forEach((t) => t.setSize(Math.ceil(W / 4), Math.ceil(H / 4)));
     this.trailMat.uniforms.uRes.value.set(Math.ceil(W / 4), Math.ceil(H / 4));
+  }
+
+  // figures for the measurement layers: places along the guides, values that drift
+  initNums(W, H, k) {
+    const c = (this.numCanvas = document.createElement('canvas'));
+    c.width = W * k;
+    c.height = H * k;
+    this.numK = k;
+    this.numTex?.dispose();
+    this.numTex = canvasTex(c, { srgb: false, mips: false });
+    this.mat.uniforms.uNums.value = this.numTex;
+    this.layers = [0, 1, 2].map(() => this.shuffle());
+    this.phase = [0, 0, 0];
+    this.drawNums();
+  }
+
+  shuffle() {
+    const R = Math.random;
+    const pick = (a) => a[Math.floor(R() * a.length)];
+    const fmt = (v, d = 1) => v.toFixed(d).replace('.', ',');
+    const items = [];
+    this.info.forEach((o) => {
+      const w = o.right - this.padX;
+      // the measure of the line, never quite the same twice
+      if (R() < 0.6) items.push({ x: this.padX + w * (0.3 + R() * 0.4), y: o.cap - 18.5, s: `${fmt(w * 0.2646 * (0.97 + R() * 0.06))} mm`, c: 1 });
+      for (let n = 0; n < 3; n++) {
+        const y = pick([o.cap - 9, o.base + 15, o.xh - 5]);
+        const kind = Math.floor(R() * 5);
+        const s = [`R ${fmt(4 + R() * 30)}`, `Ø ${fmt(10 + R() * 60)}`, `${Math.round(10 + R() * 80)}°`, fmt(R() * 2, 3), `${fmt(R() * 40)} pt`][kind];
+        items.push({ x: this.padX + R() * w, y, s, c: 0 });
+      }
+    });
+    return items;
+  }
+
+  drawNums() {
+    const c = this.numCanvas,
+      g = c.getContext('2d'),
+      k = this.numK;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.globalCompositeOperation = 'source-over';
+    g.fillStyle = '#000';
+    g.fillRect(0, 0, c.width, c.height);
+    g.scale(k, k);
+    g.globalCompositeOperation = 'lighter';
+    g.font = `500 10px ${SANS}`;
+    g.letterSpacing = '0.8px';
+    ['#f00', '#0f0', '#00f'].forEach((col, li) => {
+      g.fillStyle = col;
+      this.layers[li].forEach((it) => {
+        g.textAlign = it.c ? 'center' : 'left';
+        g.fillText(it.s, it.x, it.y);
+      });
+    });
+    this.numTex.needsUpdate = true;
   }
 
   update(r, on) {
@@ -326,6 +389,21 @@ export class Draft {
     const u = this.mat.uniforms;
     u.uP.value = this.p;
     u.uTime.value = S.time;
+    // each layer breathes on a 5.4 s cycle, a third apart; it is redrawn while invisible
+    if (this.layers) {
+      let dirty = false;
+      for (let i = 0; i < 3; i++) {
+        const ph = (S.time / 5.4 + i / 3) % 1;
+        if (ph < this.phase[i]) {
+          this.layers[i] = this.shuffle();
+          dirty = true;
+        }
+        this.phase[i] = ph;
+        const w = 0.5 - 0.5 * Math.cos(ph * Math.PI * 2);
+        u.uNumW.value.setComponent(i, w * w * (3 - 2 * w));
+      }
+      if (dirty) this.drawNums();
+    }
     const mx = S.mouse.x - r.left,
       my = S.mouse.y - r.top;
     u.uMouse.value.set(mx, my);

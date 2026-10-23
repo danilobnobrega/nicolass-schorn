@@ -61,8 +61,12 @@ a:hover .swap > span + span, button:hover .swap > span + span { transform: trans
 .menu-open .menu__list li:nth-child(3) a { transition-delay: 0.1s; }
 .menu-open .menu__list li:nth-child(4) a { transition-delay: 0.15s; }
 .menu-open .menu__list li:nth-child(5) a { transition-delay: 0.2s; }
-.menu__list a:hover { color: var(--brass); }
-.menu__list .swap { line-height: 1.45; margin: -.2em 0; }
+.menu__t { display: inline-block; line-height: 1.1; padding: .08em 0 .14em; transition: transform .7s var(--ease), color .5s var(--ease), opacity .5s var(--ease); }
+/* focus: the item under the cursor warms to brass and steps in, the rest recede */
+.menu__list:hover .menu__t { opacity: .35; }
+.menu__list a:hover .menu__t { opacity: 1; color: var(--brass); transform: translateX(18px); }
+.menu__list a i { transition: color .5s var(--ease); }
+.menu__list a:hover i { color: var(--brass); }
 
 .eyebrow { font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); }
 [data-fade] { opacity: 0; transform: translateY(18px); transition: opacity 1.4s var(--ease), transform 1.4s var(--ease); }
