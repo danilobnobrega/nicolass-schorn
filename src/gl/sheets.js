@@ -239,9 +239,14 @@ export class Sheets {
     this.my = damp(this.my, (S.mouse.y / S.h) * 2 - 1, 3, S.dt);
     // the camera frames the closed dossier, then the open spread
     const open = clamp(this.P);
-    const cx = 0.5 - open * 0.5;
-    this.cam.position.set(cx + this.mx * 0.2, 3.75 - open * 0.12, 1.3 + this.my * 0.12);
-    this.cam.lookAt(cx, 0, 0.06);
+    // on a tall screen one page fills the frame, so the camera stays on the right page
+    const narrow = this.cam.aspect < 0.9;
+    const cx = narrow ? 0.5 : 0.5 - open * 0.5;
+    const fitY = narrow ? (PW * 1.32) / (2 * Math.tan((14 * Math.PI) / 180) * this.cam.aspect) : 3.75;
+    this.cam.position.set(cx + this.mx * (narrow ? 0.08 : 0.2), fitY - open * 0.12, (narrow ? 0.12 : 1.3) + this.my * (narrow ? 0.06 : 0.12));
+    // looking almost straight down: the far edge of the desk is screen-up
+    this.cam.up.set(0, narrow ? 0 : 1, narrow ? -1 : 0);
+    this.cam.lookAt(cx, 0, 0.04);
     this.cam.updateMatrixWorld();
 
     // where the cursor points on the desk

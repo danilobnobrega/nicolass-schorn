@@ -126,7 +126,7 @@ void main(){
   vec3 bx = vec3(uTextSize*.5 + uBevel + .02, uDepth + .02);
   vec3 tc = vec3(uTextCenter, 0.);
   vec2 hit = box(uRot * (ro - tc), uRot * rd, bx);
-  if (hit.x < hit.y && hit.y > 0. && uDepth > .007){
+  if (hit.x < hit.y && hit.y > 0. && uDepth > .0035){
     float t = max(hit.x, 0.);
     bool found = false;
     for (int i = 0; i < 128; i++){
@@ -256,10 +256,12 @@ export class Glass {
     const probe = document.createElement('canvas').getContext('2d');
     probe.font = `${size}px ${DISPLAY}`;
     probe.letterSpacing = '-6px';
-    const text = 'Nícolas Schorn';
-    const w = Math.ceil(probe.measureText(text).width) + 160;
-    const h = 420;
-    const tc = textCanvas([text], { font: DISPLAY, size, width: w, height: h, padX: 80, padY: 50, tracking: -6 });
+    // on a tall screen the name stacks, so it can stay large
+    this.stacked = this.S.w / this.S.h < 0.9;
+    const lines = this.stacked ? ['Nícolas', 'Schorn'] : ['Nícolas Schorn'];
+    const w = Math.ceil(Math.max(...lines.map((l) => probe.measureText(l).width))) + 160;
+    const h = Math.ceil(size * 0.98 * (lines.length - 1) + 420);
+    const tc = textCanvas(lines, { font: DISPLAY, size, width: w, height: h, padX: 80, padY: 50, tracking: -6, align: this.stacked ? 'center' : 'left', lineHeight: 0.98 });
     this.maskW = w;
     this.maskH = h;
     return tc;
@@ -270,17 +272,20 @@ export class Glass {
     const aspect = this.S.w / this.S.h;
     u.uAspect.value = aspect;
     // the name spans almost the full width, sitting in the lower third
-    const tw = 2 * aspect * 0.94;
+    const tw = 2 * aspect * (this.stacked ? 0.9 : 0.94);
     const th = (tw * this.maskH) / this.maskW;
     u.uTextSize.value.set(tw, th);
-    u.uTextCenter.value.set(0, -0.6);
+    u.uTextCenter.value.set(0, this.stacked ? -0.98 + th / 2 + 0.12 : -0.6);
     u.uTexel.value = tw / this.maskW;
+    // lens profile and thickness follow the size of the letters
+    this.gk = Math.min(1, (tw * 2260) / (this.maskW * 3.0));
+    u.uBevel.value = 0.03 * this.gk;
     // portrait plane is further back; scale it so it fills the height
     const zb = 1.35,
       D = 4;
     const k = (D + zb) / D;
     const ph = 1.78 * k;
-    u.uPhotoRect.value.set(0.04 * k, -1 * k + ph / 2 - 0.02, ph, ph);
+    u.uPhotoRect.value.set(this.stacked ? 0 : 0.04 * k, -1 * k + ph / 2 - 0.02, ph, ph);
   }
 
   start() {
@@ -298,7 +303,7 @@ export class Glass {
     u.uIntro.value = this.intro;
     u.uPhotoIn.value = io(clamp((t - 0.5) / 2.8));
     u.uSweep.value = -2.6 + ease(clamp((t - 0.9) / 2.8)) * 5.4;
-    u.uDepth.value = 0.008 + 0.022 * io(clamp((t - 0.2) / 2.8));
+    u.uDepth.value = (0.008 + 0.022 * io(clamp((t - 0.2) / 2.8))) * (this.gk || 1);
     u.uTime.value = S.time;
     if (!on) return;
     setSeam(u.uSeam, r, S);

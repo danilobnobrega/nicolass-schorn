@@ -75,9 +75,11 @@ export function createGL(canvas) {
   S.resize = () => {
     S.w = window.innerWidth;
     S.h = window.innerHeight;
-    S.dpr = Math.min(window.devicePixelRatio || 1, 1.5);
+    S.mobile = S.w <= 820;
+    S.dpr = Math.min(window.devicePixelRatio || 1, S.mobile ? 1.35 : 1.5);
     renderer.setPixelRatio(S.dpr);
-    renderer.setSize(S.w, S.h, false);
+    // size the canvas in px too: on phones 100vh and innerHeight disagree
+    renderer.setSize(S.w, S.h, true);
     if (!S.mouse.seen) {
       S.mouse.x = S.w * 0.66;
       S.mouse.y = S.h * 0.3;
@@ -90,7 +92,31 @@ export function createGL(canvas) {
     S.mouse.x = e.clientX;
     S.mouse.y = e.clientY;
     S.mouse.seen = true;
+    if (e.pointerType !== 'mouse') S.fingerAt = S.time;
   });
+
+  // on phones the tilt of the device is the cursor: it moves the light and the cameras.
+  // the rest angle re-centres slowly, so however the phone is held, it starts in the middle
+  S.touch = matchMedia('(hover: none), (pointer: coarse)').matches;
+  S.fingerAt = -9;
+  if (S.touch) {
+    let base = null;
+    addEventListener('deviceorientation', (e) => {
+      if (e.beta == null || e.gamma == null) return;
+      const b = Math.max(-60, Math.min(90, e.beta)),
+        g = e.gamma;
+      if (!base) base = { b, g };
+      base.b += (b - base.b) * 0.004;
+      base.g += (g - base.g) * 0.004;
+      S.tilt = { x: Math.max(-1, Math.min(1, (g - base.g) / 22)), y: Math.max(-1, Math.min(1, (b - base.b) / 22)) };
+    });
+    // iOS asks once, on the first touch
+    const ask = () => {
+      removeEventListener('touchend', ask);
+      window.DeviceOrientationEvent?.requestPermission?.().catch(() => {});
+    };
+    addEventListener('touchend', ask);
+  }
 
   S.add = (v) => {
     S.views.push(v);
@@ -100,6 +126,12 @@ export function createGL(canvas) {
   S.step = (dt) => {
     S.dt = dt;
     S.time += dt;
+    // a finger on the glass wins for a moment, otherwise the tilt leads
+    if (S.touch && S.time - S.fingerAt > 1.2) {
+      const t = S.tilt || { x: Math.sin(S.time * 0.35) * 0.35, y: Math.cos(S.time * 0.27) * 0.25 };
+      S.mouse.x = S.w * (0.5 + t.x * 0.45);
+      S.mouse.y = S.h * (0.45 + t.y * 0.4);
+    }
     lx.t = S.mouse.x;
     ly.t = S.mouse.y;
     const px = S.light.x;

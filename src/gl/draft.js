@@ -44,7 +44,7 @@ uniform sampler2D uSDF, uMarks, uTrail, uNums;
 uniform vec3 uNumW;
 uniform vec2 uRes, uMouse;
 uniform float uScale, uP, uTime, uLines;
-uniform vec4 uLine[4]; // per line: base y, x-height y, cap y, right edge x (all in px, top-left origin)
+uniform vec4 uLine[8]; // per line: base y, x-height y, cap y, right edge x (all in px, top-left origin)
 ${GLSL_COMMON}
 
 void main(){
@@ -53,7 +53,7 @@ void main(){
   float x01 = px.x / uRes.x;
 
   float li = 0.; float best = 1e9;
-  for (int i = 0; i < 4; i++){
+  for (int i = 0; i < 8; i++){
     if (float(i) >= uLines) break;
     float dy = abs(px.y - (uLine[i].x - 30.));
     if (dy < best){ best = dy; li = float(i); }
@@ -162,7 +162,7 @@ export class Draft {
         uTrail: { value: null },
         uTime: { value: 0 },
         uLines: { value: 3 },
-        uLine: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) },
+        uLine: { value: [0, 1, 2, 3, 4, 5, 6, 7].map(() => new THREE.Vector4()) },
       },
     });
     this.q = quad(this.mat);
@@ -196,8 +196,9 @@ export class Draft {
     this.W = W;
     this.H = H;
     const k = 2; // texels per css px
-    const size = Math.round(W * 0.052);
-    const padX = 44;
+    const small = W <= 820;
+    const size = Math.round(small ? Math.min(W * 0.098, 44) : W * 0.052);
+    const padX = small ? 20 : 44;
     const c = document.createElement('canvas');
     c.width = W * k;
     c.height = H * k;
@@ -205,7 +206,7 @@ export class Draft {
     g.scale(k, k);
     g.font = `${size}px ${DISPLAY}`;
     g.letterSpacing = `${-size * 0.02}px`;
-    const lines = wrap(g, this.text, W - padX * 2 - W * 0.1).slice(0, 4);
+    const lines = wrap(g, this.text, W - padX * 2 - (small ? 0 : W * 0.1)).slice(0, 8);
     const lh = size * 1.12;
     const top = (H - lines.length * lh) / 2 + size * 0.1;
     g.fillStyle = '#000';
@@ -257,15 +258,16 @@ export class Draft {
         m.globalAlpha = j === 0 ? 0.55 : 0.32;
         m.setLineDash(j === 0 ? [] : [3, 4]);
         // guides fade in and out at their ends instead of stopping dead
-        const gr = m.createLinearGradient(padX - 24, 0, W - padX - 44, 0);
+        const gEnd = small ? W - 6 : W - padX - 44;
+        const gr = m.createLinearGradient(small ? 4 : padX - 24, 0, gEnd, 0);
         gr.addColorStop(0, 'rgba(255,255,255,0)');
         gr.addColorStop(0.08, '#fff');
         gr.addColorStop(0.9, '#fff');
         gr.addColorStop(1, 'rgba(255,255,255,0)');
         m.strokeStyle = gr;
         m.beginPath();
-        m.moveTo(padX - 24, y + 0.5);
-        m.lineTo(W - padX - 44, y + 0.5);
+        m.moveTo(small ? 4 : padX - 24, y + 0.5);
+        m.lineTo(gEnd, y + 0.5);
         m.moveTo(padX - 24, y + 0.5);
         m.stroke();
       });
@@ -321,7 +323,7 @@ export class Draft {
       arrow(padX, 1);
       arrow(o.right, -1);
       m.globalAlpha = 0.75;
-      if (i === 0) {
+      if (i === 0 && !small) {
         label('CAP', W - padX - 34, o.cap + 3.5);
         label('X', W - padX - 34, o.xh + 3.5);
         label('BASE', W - padX - 34, o.base + 3.5);

@@ -227,7 +227,7 @@ export class Ink {
   build(W, H) {
     this.stripScene.clear();
     const b = this.box;
-    const scale = Math.min((W * 0.62) / (b.x1 - b.x0), (H * 0.8) / (b.y1 - b.y0));
+    const scale = Math.min((W * (W <= 820 ? 0.86 : 0.62)) / (b.x1 - b.x0), (H * 0.8) / (b.y1 - b.y0));
     const ox = (W - (b.x1 - b.x0) * scale) / 2 - b.x0 * scale;
     const oy = (H - (b.y1 - b.y0) * scale) / 2 - b.y0 * scale;
     const wMax = scale * 1.3,

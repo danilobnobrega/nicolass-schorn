@@ -107,7 +107,7 @@ export class Wall {
     this.section = section;
     this.day = 0;
     const size = 260;
-    const lines = ['Acredito em relações', 'de longo prazo.'];
+    const lines = S.w / S.h < 0.9 ? ['Acredito em', 'relações de', 'longo prazo.'] : ['Acredito em relações', 'de longo prazo.'];
     const probe = document.createElement('canvas').getContext('2d');
     probe.font = `${size}px ${DISPLAY}`;
     probe.letterSpacing = '-6px';
@@ -153,7 +153,7 @@ export class Wall {
     const S = this.S;
     const u = this.mat.uniforms;
     u.uRes.value.set(S.w, S.h);
-    const tw = Math.min((S.w / S.h) * 3 * 0.78, 3.9);
+    const tw = Math.min((S.w / S.h) * 3 * (S.w / S.h < 0.9 ? 0.86 : 0.78), 3.9);
     u.uTextSize.value.set(tw, tw / this.aspect);
     u.uTexel.value = tw / this.texW;
   }

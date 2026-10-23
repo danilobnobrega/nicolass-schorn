@@ -292,7 +292,9 @@ export class Plates {
     const x = clamp((this.p - 0.04) / 0.92) * n * GAP;
     this.mx = damp(this.mx, (S.mouse.x / S.w) * 2 - 1, 3, S.dt);
     this.my = damp(this.my, (S.mouse.y / S.h) * 2 - 1, 3, S.dt);
-    this.cam.position.set(x + this.mx * 0.45, -this.my * 0.22, 7.1);
+    // far enough that a plate (and a hint of the next) fits the width of the screen
+    const fitZ = (PW * 1.25) / (2 * Math.tan((15 * Math.PI) / 180) * this.cam.aspect);
+    this.cam.position.set(x + this.mx * 0.45, -this.my * 0.22, Math.max(7.1, fitZ));
     this.cam.lookAt(x + this.mx * 0.1, 0, 0);
 
     // light: where the cursor points, a little off the wall
