@@ -91,7 +91,8 @@ export class Spring {
  * by every view, so it travels with you through the whole site.
  */
 export function createGL(canvas) {
-  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: 'high-performance' });
+  const touch = matchMedia('(hover: none), (pointer: coarse)').matches;
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true, powerPreference: touch ? 'default' : 'high-performance' });
   renderer.setClearColor(0x000000, 0);
   renderer.autoClear = false;
   renderer.toneMapping = THREE.NoToneMapping;
@@ -219,7 +220,11 @@ export function createGL(canvas) {
     window.__dbg?.('WEBGL CONTEXT LOST');
     window.__trouble?.('o WebGL caiu');
   });
-  canvas.addEventListener('webglcontextrestored', () => window.__dbg?.('webgl voltou'));
+  canvas.addEventListener('webglcontextrestored', () => {
+    window.__dbg?.('webgl voltou');
+    S.lost = false;
+    document.documentElement.classList.remove('gl-lost');
+  });
   renderer.debug.onShaderError = (gl, prog, vs, fs) => {
     window.__trouble?.('shader não compilou');
     window.__dbg?.('SHADER ' + (gl.getShaderInfoLog(fs) || gl.getShaderInfoLog(vs) || gl.getProgramInfoLog(prog) || '').slice(0, 400));

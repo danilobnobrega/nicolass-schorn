@@ -150,19 +150,33 @@ function stepPeek(dt) {
 // no WebGL (blocked, unsupported, or refused by the browser): the page still works,
 // with the photo and plain type standing in for the scenes
 let S = null;
-try {
-  S = createGL($('#gl'));
-  if (!S.renderer.getContext() || S.renderer.getContext().isContextLost()) throw new Error('contexto WebGL indisponível');
-} catch (e) {
-  window.__dbg?.('SEM WEBGL: ' + e.message);
-  S = null;
+// a browser that refused WebGL a moment ago (after a GPU reset) often gives it to a fresh
+// canvas a little later, so try a few times before settling for the plain page
+async function makeGL() {
+  for (let i = 0; i < 4; i++) {
+    try {
+      const s = createGL($('#gl'));
+      const gl = s.renderer.getContext();
+      if (gl && !gl.isContextLost()) return s;
+      s.renderer.dispose();
+      throw new Error('contexto perdido na criação');
+    } catch (e) {
+      window.__dbg?.(`webgl tentativa ${i + 1}: ${e.message}`);
+      const fresh = document.createElement('canvas');
+      fresh.id = 'gl';
+      fresh.setAttribute('aria-hidden', 'true');
+      $('#gl').replaceWith(fresh);
+      await new Promise((r) => setTimeout(r, 500 + i * 700));
+    }
+  }
+  return null;
 }
 function noGL() {
   root.classList.add('gl-lost', 'is-ready');
   $('#gl').style.display = 'none';
   setTimeout(() => lenis.start(), 300);
 }
-if (S) {
+function describeGL() {
   const gl = S.renderer.getContext();
   const ri = gl.getExtension('WEBGL_debug_renderer_info');
   window.__dbg(`gpu ${ri ? gl.getParameter(ri.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)}`);
@@ -170,11 +184,13 @@ if (S) {
   window.__dbg(`screen ${innerWidth}x${innerHeight} dpr ${devicePixelRatio} · canvas letterSpacing ${'letterSpacing' in CanvasRenderingContext2D.prototype}`);
   if (location.search.includes('debug')) setInterval(() => window.__dbg(`views ${S.views.map((v) => v.constructor.name + (v.hidden ? '(h)' : '')).join(' ')} · fps ${Math.round(1 / Math.max(S.dt, 1e-3))}`), 3000);
 }
-window.__S = S;
 addEventListener('resize', () => S?.resize());
 
 async function boot() {
+  S = await makeGL();
   if (!S) return noGL();
+  window.__S = S;
+  describeGL();
   setTimeout(() => root.classList.add('is-ready'), 8000);
   window.__dbg('boot');
   setTimeout(() => !VIEWS.glass?.started && window.__trouble('abertura não iniciou em 7s'), 7000);
