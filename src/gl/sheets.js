@@ -211,9 +211,9 @@ export class Sheets {
     this.sheets = PAGES.map((p, i) => {
       const geo = new THREE.PlaneGeometry(PW, PH, SX, SY);
       geo.translate(PW / 2, 0, 0); // hinge on the left edge
-      const front = releaseAfterUpload(new THREE.CanvasTexture(pageCanvas(p, false, S.touch ? 0.93 : 1)));
+      const front = releaseAfterUpload(new THREE.CanvasTexture(pageCanvas(p, false, S.touch ? 1.2 : 1)));
       front.colorSpace = THREE.SRGBColorSpace;
-      front.anisotropy = lite ? 4 : 8;
+      front.anisotropy = 8;
       const back = releaseAfterUpload(new THREE.CanvasTexture(pageCanvas(p, true, S.touch ? 0.4 : 1)));
       back.colorSpace = THREE.SRGBColorSpace;
       const g = new THREE.Group();
@@ -253,7 +253,8 @@ export class Sheets {
 
   resize() {
     const S = this.S;
-    this.rt.setSize(Math.round(S.w * S.rtDpr), Math.round(S.h * S.rtDpr));
+    // the dossier is read, so it renders at the full screen density (no upscaling blur)
+    this.rt.setSize(Math.round(S.w * S.dpr), Math.round(S.h * S.dpr));
     this.cam.aspect = S.w / S.h;
     this.cam.updateProjectionMatrix();
   }
