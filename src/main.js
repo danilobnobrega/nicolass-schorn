@@ -130,6 +130,13 @@ function stepPeek(dt) {
         navigator.sendBeacon('/api/diag', new Blob([JSON.stringify({ id, tag, lines })], { type: 'text/plain' }));
       } catch (e) {}
     };
+    let pend = null;
+    const dbg = window.__dbg;
+    window.__dbg = (x) => {
+      dbg(x);
+      clearTimeout(pend);
+      pend = setTimeout(() => send('stage'), 250);
+    };
     setTimeout(() => send('4s'), 4000);
     setTimeout(() => send('12s'), 12000);
     const trouble = window.__trouble;
@@ -139,8 +146,22 @@ function stepPeek(dt) {
   }
 }
 
-const S = createGL($('#gl'));
-if (window.__dbg) {
+// no WebGL (blocked, unsupported, or refused by the browser): the page still works,
+// with the photo and plain type standing in for the scenes
+let S = null;
+try {
+  S = createGL($('#gl'));
+  if (!S.renderer.getContext() || S.renderer.getContext().isContextLost()) throw new Error('contexto WebGL indisponível');
+} catch (e) {
+  window.__dbg?.('SEM WEBGL: ' + e.message);
+  S = null;
+}
+function noGL() {
+  root.classList.add('gl-lost', 'is-ready');
+  $('#gl').style.display = 'none';
+  setTimeout(() => lenis.start(), 300);
+}
+if (S) {
   const gl = S.renderer.getContext();
   const ri = gl.getExtension('WEBGL_debug_renderer_info');
   window.__dbg(`gpu ${ri ? gl.getParameter(ri.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)}`);
@@ -149,9 +170,10 @@ if (window.__dbg) {
   if (location.search.includes('debug')) setInterval(() => window.__dbg(`views ${S.views.map((v) => v.constructor.name + (v.hidden ? '(h)' : '')).join(' ')} · fps ${Math.round(1 / Math.max(S.dt, 1e-3))}`), 3000);
 }
 window.__S = S;
-addEventListener('resize', () => S.resize());
+addEventListener('resize', () => S?.resize());
 
 async function boot() {
+  if (!S) return noGL();
   setTimeout(() => root.classList.add('is-ready'), 8000);
   window.__dbg('boot');
   setTimeout(() => !VIEWS.glass?.started && window.__trouble('abertura não iniciou em 7s'), 7000);
@@ -229,9 +251,11 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   lenis.raf(now);
-  S.step(dt);
   stepPeek(dt);
-  S.render();
+  if (S && !S.lost) {
+    S.step(dt);
+    S.render();
+  }
   // the header reads dark while the wall is in daylight behind it
   const w = VIEWS.wall;
   const light = w && w.rect && w.rect.top < 90 && w.rect.bottom > 0 && w.day > 0.06 && w.day < 0.93;
