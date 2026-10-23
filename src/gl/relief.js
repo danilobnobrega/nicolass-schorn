@@ -106,7 +106,7 @@ export class Relief {
     this.act = titles.map(() => new Spring(0, 60, 14));
     this.hover = -1;
     this.rows.forEach((row, i) => {
-      row.addEventListener('pointerenter', () => (this.hover = i));
+      row.addEventListener('pointerenter', (e) => e.pointerType === 'mouse' && (this.hover = i));
       row.addEventListener('pointerleave', () => this.hover === i && (this.hover = -1));
     });
     this.mat = new THREE.ShaderMaterial({

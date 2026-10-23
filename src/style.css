@@ -173,20 +173,13 @@ a:hover .swap > span + span, button:hover .swap > span + span { transform: trans
   .foot__line { flex-direction: column; gap: 6px; }
 }
 
-/* fallback when WebGL is unavailable or lost: the photo and the name, plainly */
-.gl-lost .hero { background: url(/nicolas.jpg) center 20% / cover; }
-.gl-lost .hero::after { content: 'Nícolas Schorn'; position: absolute; left: 0; right: 0; bottom: 12vh; text-align: center; font-family: var(--serif); font-size: clamp(48px, 12vw, 160px); line-height: .95; color: var(--bone); text-shadow: 0 4px 30px rgba(0,0,0,.6); }
-.gl-lost .row__title { color: var(--bone); }
-.gl-lost .sr { position: static; width: auto; height: auto; overflow: visible; clip: auto; white-space: normal; }
-.gl-lost .hero h1.sr { display: none; }
-.gl-lost .about__draft { height: auto; margin: 4vh 0 0; }
-.gl-lost [data-draft-text] { font-family: var(--serif); font-weight: 400; font-size: clamp(30px, 5.2vw, 76px); line-height: 1.1; letter-spacing: -0.02em; }
-.gl-lost .plates, .gl-lost .method, .gl-lost .wall { height: auto; }
-.gl-lost .plates__sticky, .gl-lost .method__sticky, .gl-lost .wall__sticky { position: static; height: auto; padding: 16vh 20px; }
-.gl-lost .plates__eyebrow { position: static; margin-bottom: 4vh; }
-.gl-lost .plates ul.sr { display: grid; gap: 18px; font-family: var(--serif); font-size: clamp(24px, 3.4vw, 44px); line-height: 1.2; color: var(--brass); }
-.gl-lost .method ol.sr { display: grid; gap: 7vh; }
-.gl-lost .method ol.sr h3 { font-family: var(--serif); font-weight: 400; font-size: clamp(28px, 4vw, 56px); margin-bottom: 12px; }
-.gl-lost .method ol.sr p { color: #b9b1a4; font-size: 17px; line-height: 1.6; max-width: 560px; }
-.gl-lost .wall blockquote.sr { font-family: var(--serif); font-size: clamp(40px, 7vw, 110px); line-height: 1.02; text-align: center; }
-.gl-lost .contact__ink { display: none; }
+
+/* phones have no hover: nothing changes under a finger */
+@media (hover: none) {
+  .pill:hover::before { transform: translateY(101%); }
+  a:hover .swap > span:first-child, button:hover .swap > span:first-child { transform: none; }
+  a:hover .swap > span + span, button:hover .swap > span + span { transform: translateY(105%); }
+  .ulink:hover::after { transform: scaleX(0); }
+  .hdr__menu:hover .hdr__dots { transform: none; }
+  .menu-open .hdr__dots { transform: rotate(45deg); }
+}

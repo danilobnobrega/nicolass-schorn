@@ -323,7 +323,7 @@ export class Sheets {
     this.sheets.forEach((sh, i) => {
       const t = clamp(this.P - i);
       // the top sheet's corner rises when the hand comes near it
-      const near = hit && i === top && i < PAGES.length - 1 ? smooth(0.5, 0.08, Math.hypot(hit.x - PW, hit.z - PH / 2)) : 0;
+      const near = hit && !S.touch && i === top && i < PAGES.length - 1 ? smooth(0.5, 0.08, Math.hypot(hit.x - PW, hit.z - PH / 2)) : 0;
       sh.ls.t = near;
       const lift = clamp(sh.ls.step(S.dt), 0, 1.2);
       this.bend(sh, t, lift);

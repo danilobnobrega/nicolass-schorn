@@ -288,9 +288,9 @@ export class Glass {
     u.uPhotoRect.value.set(this.stacked ? 0 : 0.04 * k, -1 * k + ph / 2 - 0.02, ph, ph);
   }
 
-  start() {
+  start(skipIntro = false) {
     this.started = true;
-    this.t0 = this.S.time;
+    this.t0 = this.S.time - (skipIntro ? 10 : 0);
   }
 
   update(r, on) {

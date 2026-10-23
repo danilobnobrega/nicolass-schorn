@@ -466,7 +466,7 @@ export class Draft {
     tu.uVel.value.set(vel.x, vel.y);
     tu.uDt.value = S.dt;
     tu.uTime.value = S.time;
-    this.on += ((this.hover && this.p >= 1 ? 1 : 0) - this.on) * (1 - Math.exp(-10 * S.dt));
+    this.on += ((this.hover && !S.touch && this.p >= 1 ? 1 : 0) - this.on) * (1 - Math.exp(-10 * S.dt));
     tu.uOn.value = this.on;
   }
 

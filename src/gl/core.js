@@ -118,8 +118,14 @@ export function createGL(canvas) {
   const ly = new Spring(0, 30, 10);
 
   S.resize = () => {
-    S.w = window.innerWidth;
-    S.h = window.innerHeight;
+    const w = window.innerWidth,
+      h = window.innerHeight;
+    // phones: the address bar grows and shrinks while scrolling. Keep the canvas at the
+    // tallest height seen for this width, so nothing on the GPU is reallocated mid-scroll
+    if (S.touch && w === S.w && h <= S.h && S.h - h < 220) return;
+    const sameW = w === S.w;
+    S.w = w;
+    S.h = S.touch && sameW ? Math.max(h, S.h || 0) : h;
     S.mobile = S.w <= 820;
     S.dpr = Math.min(window.devicePixelRatio || 1, S.touch ? 1 : 1.5);
     renderer.setPixelRatio(S.dpr);
@@ -151,8 +157,8 @@ export function createGL(canvas) {
   S.step = (dt) => {
     S.dt = dt;
     S.time += dt;
-    // phones have no cursor: the light drifts slowly on its own, a finger takes it for a moment
-    if (S.touch && S.time - S.fingerAt > 1.2) {
+    // phones have no cursor: the light drifts slowly on its own
+    if (S.touch) {
       const t = { x: Math.sin(S.time * 0.35) * 0.35, y: Math.cos(S.time * 0.27) * 0.25 };
       S.mouse.x = S.w * (0.5 + t.x * 0.45);
       S.mouse.y = S.h * (0.45 + t.y * 0.4);
@@ -200,14 +206,15 @@ export function createGL(canvas) {
   canvas.addEventListener('webglcontextlost', (e) => {
     e.preventDefault();
     S.lost = true;
-    document.documentElement.classList.add('gl-lost');
     window.__dbg?.('WEBGL CONTEXT LOST');
     window.__trouble?.('o WebGL caiu');
+    // give the browser a moment to hand the context back; otherwise start over
+    S.lostAt = performance.now();
+    setTimeout(() => S.lost && S.onLost?.(), 1500);
   });
   canvas.addEventListener('webglcontextrestored', () => {
     window.__dbg?.('webgl voltou');
     S.lost = false;
-    document.documentElement.classList.remove('gl-lost');
   });
   renderer.debug.onShaderError = (gl, prog, vs, fs) => {
     window.__trouble?.('shader não compilou');

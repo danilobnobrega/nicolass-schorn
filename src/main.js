@@ -182,10 +182,21 @@ async function makeGL() {
   }
   return null;
 }
+// no WebGL right now (blocked for a while after a GPU reset): the page stays exactly as it
+// is and keeps asking; the moment a context is granted, the scenes come back where you are
 function noGL() {
-  root.classList.add('gl-lost', 'is-ready');
-  $('#gl').style.display = 'none';
+  root.classList.add('is-ready');
   setTimeout(() => lenis.start(), 300);
+  let tries = 0;
+  const again = async () => {
+    if (S || tries++ > 40) return;
+    const s = await makeGL();
+    if (s) {
+      S = s;
+      startGL();
+    } else setTimeout(again, 3000);
+  };
+  setTimeout(again, 3000);
 }
 function describeGL() {
   const gl = S.renderer.getContext();
@@ -197,17 +208,41 @@ function describeGL() {
 }
 addEventListener('resize', () => S?.resize());
 
+let scenesTimer = 0;
 async function boot() {
-  S = await makeGL();
-  if (!S) return noGL();
-  window.__S = S;
-  describeGL();
-  setTimeout(() => root.classList.add('is-ready'), 8000);
   window.__dbg('boot');
-  setTimeout(() => !VIEWS.glass?.started && window.__trouble('abertura não iniciou em 7s'), 7000);
+  setTimeout(() => root.classList.add('is-ready'), 8000);
   await document.fonts.load('300px "Gloock"');
   await document.fonts.load('400 40px "Inter Tight Variable"');
   window.__dbg('fontes ok');
+  S = await makeGL();
+  if (!S) return noGL();
+  startGL();
+}
+
+// a GPU reset on a phone: rebuild everything on a fresh canvas, at the current scroll
+function onLost() {
+  window.__dbg('reconstruindo o WebGL');
+  clearInterval(scenesTimer);
+  for (const k of Object.keys(VIEWS)) delete VIEWS[k];
+  const old = S;
+  S = null;
+  try {
+    old?.renderer.dispose();
+  } catch (e) {}
+  setTimeout(async () => {
+    const s = await makeGL();
+    if (!s) return noGL();
+    S = s;
+    startGL(true);
+  }, 600);
+}
+
+async function startGL(again = false) {
+  window.__S = S;
+  S.onLost = onLost;
+  describeGL();
+  setTimeout(() => !VIEWS.glass?.started && window.__trouble('abertura não iniciou em 7s'), 7000);
   const [photo, geo] = await Promise.all([loadTexture('/nicolas-cut.png'), loadTexture('/nicolas-geo.png', false)]);
   window.__dbg('fotos ok');
 
@@ -215,8 +250,8 @@ async function boot() {
   // never leave the page blank: if the hero is slow, open anyway
   await Promise.race([VIEWS.glass.ready.then(() => window.__dbg('vidro pronto')), new Promise((r) => setTimeout(r, 5000))]);
   root.classList.add('is-ready');
-  VIEWS.glass.start();
-  setTimeout(() => lenis.start(), 1400);
+  VIEWS.glass.start(again);
+  if (!again) setTimeout(() => lenis.start(), 1400);
 
   // the other scenes: all at once on a desktop; on a phone each one is built as it
   // comes within reach and torn down once it is far behind, so memory stays small
@@ -252,11 +287,12 @@ async function boot() {
     window.__dbg?.('- ' + sc.key);
   };
   if (!S.touch) {
-    for (const sc of SCENES) await build(sc);
+    for (const sc of SCENES) if (S) await build(sc);
   } else {
     // one scene at a time, in the order they are needed
     let busy = false;
-    setInterval(async () => {
+    scenesTimer = setInterval(async () => {
+      if (!S) return;
       if (busy) return;
       const h = innerHeight;
       for (const sc of SCENES) {
