@@ -237,6 +237,32 @@ export function quad(material) {
   return { scene, cam, mesh, draw: (r) => r.render(scene, cam) };
 }
 
+// frees every GPU resource a view holds: render targets, textures, materials, geometry
+export function disposeDeep(root) {
+  const seen = new Set();
+  const walk = (o, depth) => {
+    if (!o || typeof o !== 'object' || seen.has(o) || depth > 4) return;
+    seen.add(o);
+    if (o.isWebGLRenderTarget || o.isTexture || o.isBufferGeometry) return o.dispose();
+    if (o.isMaterial) {
+      for (const k in o.uniforms || {}) walk(o.uniforms[k].value, depth + 1);
+      for (const k of ['map', 'envMap']) walk(o[k], depth + 1);
+      return o.dispose();
+    }
+    if (o.isObject3D) {
+      o.traverse((c) => {
+        walk(c.geometry, depth + 1);
+        (Array.isArray(c.material) ? c.material : [c.material]).forEach((m) => walk(m, depth + 1));
+        if (c.shadow?.map) c.shadow.map.dispose();
+      });
+      return;
+    }
+    if (o instanceof HTMLElement || o === root.S) return;
+    for (const k in o) if (k !== 'S' && k !== 'el' && k !== 'section') walk(o[k], depth + 1);
+  };
+  walk(root, 0);
+}
+
 export function loadTexture(url, srgb = true) {
   return new Promise((res, rej) =>
     new THREE.TextureLoader().load(

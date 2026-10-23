@@ -146,7 +146,7 @@ export class Sheets {
 
     this.lamp = new THREE.SpotLight(0xffe7c8, 60, 12, 0.75, 0.65, 1.6);
     this.lamp.castShadow = true;
-    this.lamp.shadow.mapSize.set(2048, 2048);
+    this.lamp.shadow.mapSize.setScalar(S.touch ? 1024 : 2048);
     this.lamp.shadow.bias = -0.0004;
     this.lamp.shadow.normalBias = 0.01;
     this.lamp.shadow.radius = 6;

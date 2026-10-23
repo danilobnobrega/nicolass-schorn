@@ -5,7 +5,9 @@ import * as THREE from 'three';
  * (Felzenszwalb & Huttenlocher, see sdf.worker.js). Signed distance in texels:
  * negative inside the ink, positive outside.
  */
-const POOL = Array.from({ length: Math.min(3, navigator.hardwareConcurrency || 2) }, () => new Worker(new URL('./sdf.worker.js', import.meta.url), { type: 'module' }));
+// one worker on phones keeps the peak memory low
+const phone = matchMedia('(hover: none), (pointer: coarse)').matches;
+const POOL = Array.from({ length: phone ? 1 : Math.min(3, navigator.hardwareConcurrency || 2) }, () => new Worker(new URL('./sdf.worker.js', import.meta.url), { type: 'module' }));
 const jobs = new Map();
 let seq = 0;
 POOL.forEach((wk) =>

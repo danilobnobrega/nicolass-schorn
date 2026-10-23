@@ -24,9 +24,9 @@ function edt1d(f, d, v, z, n) {
 }
 function edt2d(grid, w, h) {
   const n = Math.max(w, h);
-  const f = new Float64Array(n),
-    d = new Float64Array(n),
-    z = new Float64Array(n + 1),
+  const f = new Float32Array(n),
+    d = new Float32Array(n),
+    z = new Float32Array(n + 1),
     v = new Uint32Array(n);
   for (let x = 0; x < w; x++) {
     for (let y = 0; y < h; y++) f[y] = grid[y * w + x];
@@ -41,8 +41,8 @@ function edt2d(grid, w, h) {
 }
 
 function maskToSDF(px, w, h) {
-  const outer = new Float64Array(w * h);
-  const inner = new Float64Array(w * h);
+  const outer = new Float32Array(w * h);
+  const inner = new Float32Array(w * h);
   for (let i = 0; i < w * h; i++) {
     const a = px[i] / 255;
     // sub-pixel edge from antialiased coverage

@@ -1,6 +1,6 @@
 import './style.css';
 import Lenis from 'lenis';
-import { createGL, loadTexture, clamp } from './gl/core.js';
+import { createGL, loadTexture, clamp, disposeDeep } from './gl/core.js';
 import { Glass } from './gl/glass.js';
 
 const $ = (s, c = document) => c.querySelector(s);
@@ -123,18 +123,59 @@ async function boot() {
   VIEWS.glass.start();
   setTimeout(() => lenis.start(), 1400);
 
-  const mods = await Promise.allSettled([
-    import('./gl/draft.js').then((m) => (VIEWS.draft = S.add(new m.Draft(S, $('[data-view="draft"]'), $('[data-draft-text]').textContent)))),
-    import('./gl/plates.js').then((m) => (VIEWS.plates = S.add(new m.Plates(S, $('[data-view="plates"]'), $('.plates'))))),
-    import('./gl/relief.js').then((m) => (VIEWS.relief = S.add(new m.Relief(S, $('[data-view="relief"]'), $$('[data-relief]'))))),
-    import('./gl/sheets.js').then((m) => (VIEWS.sheets = S.add(new m.Sheets(S, $('[data-view="sheets"]'), $('.method'))))),
-    import('./gl/wall.js').then((m) => (VIEWS.wall = S.add(new m.Wall(S, $('[data-view="wall"]'), $('.wall'))))),
-    import('./gl/ink.js').then((m) => (VIEWS.ink = S.add(new m.Ink(S, $('[data-view="ink"]'))))),
-  ]);
-  mods.forEach((m) => m.status === 'rejected' && console.error(m.reason));
-  // keep the hero first so the scissor order follows the page
-  S.views.sort((a, b) => a.el.getBoundingClientRect().top + scrollY - (b.el.getBoundingClientRect().top + scrollY));
-
+  // the other scenes: all at once on a desktop; on a phone each one is built as it
+  // comes within reach and torn down once it is far behind, so memory stays small
+  const SCENES = [
+    ['draft', '[data-view="draft"]', () => import('./gl/draft.js').then((m) => new m.Draft(S, $('[data-view="draft"]'), $('[data-draft-text]').textContent))],
+    ['plates', '[data-view="plates"]', () => import('./gl/plates.js').then((m) => new m.Plates(S, $('[data-view="plates"]'), $('.plates')))],
+    ['relief', '[data-view="relief"]', () => import('./gl/relief.js').then((m) => new m.Relief(S, $('[data-view="relief"]'), $$('[data-relief]')))],
+    ['sheets', '[data-view="sheets"]', () => import('./gl/sheets.js').then((m) => new m.Sheets(S, $('[data-view="sheets"]'), $('.method')))],
+    ['wall', '[data-view="wall"]', () => import('./gl/wall.js').then((m) => new m.Wall(S, $('[data-view="wall"]'), $('.wall')))],
+    ['ink', '[data-view="ink"]', () => import('./gl/ink.js').then((m) => new m.Ink(S, $('[data-view="ink"]')))],
+  ].map(([key, sel, make]) => ({ key, el: $(sel), make, state: 'idle' }));
+  const sortViews = () => S.views.sort((a, b) => a.el.getBoundingClientRect().top - b.el.getBoundingClientRect().top);
+  const build = async (sc) => {
+    sc.state = 'building';
+    try {
+      VIEWS[sc.key] = S.add(await sc.make());
+      sortViews();
+      sc.state = 'live';
+      window.__dbg?.('+ ' + sc.key);
+    } catch (e) {
+      console.error(e);
+      sc.state = 'failed';
+    }
+  };
+  const drop = (sc) => {
+    const v = VIEWS[sc.key];
+    S.views = S.views.filter((x) => x !== v);
+    disposeDeep(v);
+    delete VIEWS[sc.key];
+    sc.state = 'idle';
+    window.__dbg?.('- ' + sc.key);
+  };
+  if (!S.touch) {
+    for (const sc of SCENES) await build(sc);
+  } else {
+    // one scene at a time, in the order they are needed
+    let busy = false;
+    setInterval(async () => {
+      if (busy) return;
+      const h = innerHeight;
+      for (const sc of SCENES) {
+        const r = sc.el.closest('section').getBoundingClientRect();
+        const near = r.bottom > -1.2 * h && r.top < 2.2 * h;
+        const far = r.bottom < -2.5 * h || r.top > 3.5 * h;
+        if (near && sc.state === 'idle') {
+          busy = true;
+          await build(sc);
+          busy = false;
+          return;
+        }
+        if (far && sc.state === 'live') drop(sc);
+      }
+    }, 250);
+  }
 }
 
 let last = performance.now();
