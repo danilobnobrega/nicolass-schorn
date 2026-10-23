@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { quad, clamp, damp, Spring, GLSL_COMMON, DISPLAY, SANS, wrap, canvasTex } from './core.js';
+import { quad, clamp, damp, GLSL_COMMON, DISPLAY, SANS, wrap, canvasTex } from './core.js';
 import { sdfTexture } from './sdf.js';
 
 /*
@@ -7,12 +7,42 @@ import { sdfTexture } from './sdf.js';
  * then every letter gains weight from its own skeleton until it is solid type.
  * Under the cursor the drawing shows through again.
  */
+// the cursor leaves a trail (quarter resolution) that spreads, fades and drifts on a soft flow
+const TRAIL = /* glsl */ `
+precision highp float;
+varying vec2 vUv;
+uniform sampler2D uPrev;
+uniform vec2 uRes, uMouse, uVel;
+uniform float uDt, uOn, uTime;
+${GLSL_COMMON}
+void main(){
+  vec2 px = vUv * uRes;
+  float n1 = fbm(px * .025 + uTime * .05), n2 = fbm(px * .025 - uTime * .04 + 7.3);
+  vec2 flow = vec2(n1 - .5, n2 - .5) * 14. * uDt;
+  float prev = texture2D(uPrev, (px - flow) / uRes).r;
+  vec2 tx = 1. / uRes;
+  float blur = (texture2D(uPrev, vUv + vec2(tx.x, 0.)).r + texture2D(uPrev, vUv - vec2(tx.x, 0.)).r
+              + texture2D(uPrev, vUv + vec2(0., tx.y)).r + texture2D(uPrev, vUv - vec2(0., tx.y)).r) * .25;
+  float v = mix(prev, blur, .3) * exp(-uDt * .55);
+  // the brush: stretched along the movement, a small presence even at rest
+  vec2 d = px - uMouse;
+  float sp = length(uVel);
+  vec2 dir = sp > 1. ? uVel / sp : vec2(1., 0.);
+  float along = dot(d, dir), across = dot(d, vec2(-dir.y, dir.x));
+  float r = 9. + min(sp * .012, 10.);
+  float st = 1. + min(sp * .01, 2.5);
+  float b = exp(-(along * along / (r * r * st * st) + across * across / (r * r)));
+  v += b * uOn * uDt * (1.8 + min(sp * .012, 4.));
+  gl_FragColor = vec4(min(v, 1.4), 0., 0., 1.);
+}
+`;
+
 const FRAG = /* glsl */ `
 precision highp float;
 varying vec2 vUv;
-uniform sampler2D uSDF, uMarks;
+uniform sampler2D uSDF, uMarks, uTrail;
 uniform vec2 uRes, uMouse;
-uniform float uScale, uP, uLens, uTime, uLines;
+uniform float uScale, uP, uTime, uLines;
 uniform vec4 uLine[4]; // per line: base y, x-height y, cap y, right edge x (all in px, top-left origin)
 ${GLSL_COMMON}
 
@@ -21,7 +51,6 @@ void main(){
   float d = texture2D(uSDF, vUv).r / uScale;  // signed distance in css px
   float x01 = px.x / uRes.x;
 
-  // which line are we on (nearest baseline)
   float li = 0.; float best = 1e9;
   for (int i = 0; i < 4; i++){
     if (float(i) >= uLines) break;
@@ -32,33 +61,55 @@ void main(){
   // progress per letter: left to right, line after line
   float order = x01 * .55 + li / max(uLines - 1., 1.) * .45;
   float t = clamp((uP - .1 - order * .5) / .4, 0., 1.);
-  float tg = clamp((uP - order * .35) / .3, 0., 1.);  // guides lead the letters
 
-  // the cursor lens brings the drawing back
-  float lens = uLens * smoothstep(150., 60., length(px - uMouse));
-  float tl = mix(t, min(t, .18), lens);
+  // the lens is the cursor's trail, with an edge that keeps changing shape
+  float tr = texture2D(uTrail, vUv).r;
+  float wob = fbm(px * .018 + vec2(uTime * .25, -uTime * .18)) - .5;
+  float lens = smoothstep(.18, .42, tr + wob * .32);
+  float rim = smoothstep(.12, .3, tr + wob * .32) - lens;   // the fringe where it is being redrawn
+  float tl = mix(t, min(t, .16), lens);
 
   vec3 bone = vec3(.925,.902,.855);
   vec3 brass = vec3(.706,.553,.333);
   vec3 col = vec3(0.); float a = 0.;
 
-  // drafting grid, only while drawing
+  // drafting grid: drawn in line by line like a plotter, pulled out the same way
+  vec2 cell = floor(px / 24.);
   vec2 g = abs(fract(px / 24.) - .5) * 24.;
-  float grid = (1. - smoothstep(0., 1., min(g.x, g.y))) * .05 * (1. - smoothstep(.3, 1., tg)) * smoothstep(0., .2, tg);
-  grid += (1. - smoothstep(0., 1., min(g.x, g.y))) * .07 * lens;
+  float lineV = 1. - smoothstep(0., 1., g.x), lineH = 1. - smoothstep(0., 1., g.y);
+  float hv = hash12(vec2(cell.x, 1.)), hh = hash12(vec2(2., cell.y));
+  float y01 = px.y / uRes.y;
+  float inV = step(y01, uP * 2.6 - hv * .9) * step(uP * 1.9 - 1.25 - hv * .35, y01);
+  float inH = step(x01, uP * 2.6 - hh * .9) * step(uP * 1.9 - 1.25 - hh * .35, x01);
+  float grid = max(lineV * inV, lineH * inH) * .055;
+  // inside the lens the grid is alive: it slides, and its dashes run
+  vec2 gp = px + vec2(uTime * 9., uTime * -6.);
+  vec2 g2 = abs(fract(gp / 24.) - .5) * 24.;
+  float dash = step(.45, fract((gp.x + gp.y) / 9. - uTime * .6));
+  float gridL = (1. - smoothstep(0., 1.2, min(g2.x, g2.y))) * (.16 + .14 * dash);
+  vec2 g3 = abs(fract(gp / 6.) - .5) * 6.;
+  float fine = (1. - smoothstep(0., .7, min(g3.x, g3.y))) * .05;
+  grid = mix(grid, gridL + fine, lens);
   col += brass * grid; a += grid;
 
-  // construction marks (canvas): dimension lines, compass arcs, guides
+  // construction marks: traced in behind a bright pen head, erased as the type sets
   vec4 m = texture2D(uMarks, vUv);
-  float mk = m.a * smoothstep(.0, .15, tg);
-  float keep = mix(1. - smoothstep(.55, 1., t) * .85, 1., lens);
-  col += brass * mk * keep; a += mk * keep;
+  float drawn = smoothstep(order - .02, order, uP * 2.2);
+  float erased = smoothstep(order + .02, order, (uP - .5) * 2.1);
+  float head = exp(-pow((order - uP * 2.2) * 40., 2.));
+  float mk = m.a * drawn * erased;
+  // in the lens the marks come back with a scan running through them
+  float scan = .55 + .45 * smoothstep(.2, .9, sin(x01 * 9. - uTime * 1.4) * .5 + .5);
+  mk = max(mk, m.a * lens * scan);
+  col += brass * mk * (1. + head * 1.5); a += mk;
 
-  // outline: a hairline that is drawn before the letter is filled
+  // outline: a hairline drawn before the letter is filled
   float reveal = smoothstep(0., .08, t);
-  float ol = (1. - smoothstep(.35, 1.1, abs(d))) * reveal;
-  float olFade = mix(1. - smoothstep(.7, 1., t), 1., lens);
+  float ol = 1. - smoothstep(.35, 1.1, abs(d));
+  float olFade = max(reveal * (1. - smoothstep(.7, 1., t)), lens);
   col += mix(brass, bone, .35) * ol * olFade * .9; a += ol * olFade * .9;
+  // where the lens is closing the outline glows as the weight comes back
+  col += brass * ol * rim * 1.2; a += ol * rim;
 
   // weight: the fill grows outward from the skeleton
   float inset = (1. - tl) * 9.;
@@ -77,7 +128,9 @@ export class Draft {
     this.el = el;
     this.text = text.trim();
     this.p = 0;
-    this.lens = new Spring(0, 90, 16);
+    this.on = 0;
+    this.hover = false;
+    this.pm = null;
     this.mat = new THREE.ShaderMaterial({
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',
       fragmentShader: FRAG,
@@ -94,15 +147,32 @@ export class Draft {
         uMouse: { value: new THREE.Vector2(-999, -999) },
         uScale: { value: 2 },
         uP: { value: 0 },
-        uLens: { value: 0 },
+        uTrail: { value: null },
         uTime: { value: 0 },
         uLines: { value: 3 },
         uLine: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) },
       },
     });
     this.q = quad(this.mat);
-    el.addEventListener('pointerenter', () => (this.lens.t = 1));
-    el.addEventListener('pointerleave', () => (this.lens.t = 0));
+    const tOpt = { type: THREE.HalfFloatType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false };
+    this.trail = [new THREE.WebGLRenderTarget(4, 4, tOpt), new THREE.WebGLRenderTarget(4, 4, tOpt)];
+    this.trailMat = new THREE.ShaderMaterial({
+      vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',
+      fragmentShader: TRAIL,
+      depthTest: false,
+      uniforms: {
+        uPrev: { value: null },
+        uRes: { value: new THREE.Vector2(1, 1) },
+        uMouse: { value: new THREE.Vector2(-999, -999) },
+        uVel: { value: new THREE.Vector2() },
+        uDt: { value: 0.016 },
+        uOn: { value: 0 },
+        uTime: { value: 0 },
+      },
+    });
+    this.tq = quad(this.trailMat);
+    el.addEventListener('pointerenter', () => (this.hover = true));
+    el.addEventListener('pointerleave', () => (this.hover = false));
     this.resize();
   }
 
@@ -241,19 +311,43 @@ export class Draft {
     this.marks = canvasTex(mc, { srgb: false });
     this.mat.uniforms.uMarks.value = this.marks;
     this.mat.uniforms.uRes.value.set(W, H);
+    // the trail lives at a quarter of the resolution
+    this.trail.forEach((t) => t.setSize(Math.ceil(W / 4), Math.ceil(H / 4)));
+    this.trailMat.uniforms.uRes.value.set(Math.ceil(W / 4), Math.ceil(H / 4));
   }
 
   update(r, on) {
     if (!on) return;
     const S = this.S;
-    // drafting starts as the block enters and is done a bit above the middle
     const target = clamp((S.h * 0.9 - r.top) / (S.h * 0.85));
     this.p = damp(this.p, target, 4, S.dt);
     const u = this.mat.uniforms;
     u.uP.value = this.p;
-    u.uLens.value = clamp(this.lens.step(S.dt), 0, 1.2);
-    u.uMouse.value.set(S.mouse.x - r.left, S.mouse.y - r.top);
     u.uTime.value = S.time;
+    const mx = S.mouse.x - r.left,
+      my = S.mouse.y - r.top;
+    u.uMouse.value.set(mx, my);
+    const tu = this.trailMat.uniforms;
+    // trail space: quarter resolution, y up
+    const q = { x: mx / 4, y: (r.height - my) / 4 };
+    const k = 1 / Math.max(S.dt, 1e-3);
+    const vel = this.pm ? { x: (q.x - this.pm.x) * k, y: (q.y - this.pm.y) * k } : { x: 0, y: 0 };
+    this.pm = q;
+    tu.uMouse.value.set(q.x, q.y);
+    tu.uVel.value.set(vel.x, vel.y);
+    tu.uDt.value = S.dt;
+    tu.uTime.value = S.time;
+    this.on += ((this.hover ? 1 : 0) - this.on) * (1 - Math.exp(-10 * S.dt));
+    tu.uOn.value = this.on;
+  }
+
+  prerender(renderer) {
+    const [a, b] = this.trail;
+    this.trailMat.uniforms.uPrev.value = a.texture;
+    renderer.setRenderTarget(b);
+    this.tq.draw(renderer);
+    this.trail = [b, a];
+    this.mat.uniforms.uTrail.value = b.texture;
   }
 
   render(renderer) {

@@ -10,14 +10,13 @@ import { sdfTexture, textCanvas } from './sdf.js';
 const FRAG = /* glsl */ `
 precision highp float;
 varying vec2 vUv;
-uniform sampler2D uSDF, uPhoto;
+uniform sampler2D uSDF, uPhoto, uGeo;
 uniform vec2 uRes, uSdfRes, uLight;
 uniform vec3 uCam;
 uniform mat3 uRot;
 uniform vec2 uTextSize, uTextCenter;
 uniform float uTexel, uDepth, uBevel, uIor, uIntro, uTime, uPhotoIn, uSweep, uAspect, uLeave;
 uniform vec4 uPhotoRect;
-uniform float uDbg;
 ${GLSL_COMMON}
 
 const float TAN = 0.24933; // tan(14deg)
@@ -50,23 +49,60 @@ vec2 box(vec3 ro, vec3 rd, vec3 b){
   return vec2(max(max(t1.x,t1.y),t1.z), min(min(t2.x,t2.y),t2.z));
 }
 
+// the portrait is lit as a volume: normals and depth were estimated from the photo,
+// so the cursor's light models the face, a rim catches the far edge, and he casts a
+// shadow on the wall behind him
+vec4 portrait(vec2 uv){
+  if (uv.x < 0. || uv.x > 1. || uv.y < 0. || uv.y > 1.) return vec4(0.);
+  return texture2D(uPhoto, uv);
+}
 vec3 backdrop(vec2 p, vec2 lightW){
-  // graphite wall, a warm pool where the light is, the portrait standing in it
   float pool = exp(-dot(p - lightW*1.25, p - lightW*1.25) * 1.1);
   vec3 c = vec3(.011,.010,.009) + vec3(.065,.05,.034) * pool * (.35 + .65*uIntro);
   c += vec3(.016,.014,.012) * smoothstep(-2.2, 1.5, p.y);
   vec2 uv = (p - uPhotoRect.xy) / uPhotoRect.zw + .5;
+  vec3 P = vec3(p, ${'-1.35'});
+  vec3 Lp = vec3(lightW * 1.3375, 1.6);
+  vec3 Ld = normalize(Lp - P);
+
+  // his shadow on the wall: the matte, pushed away from the light and softened
+  vec2 so = -Ld.xy / max(Ld.z, .35) * .085 / uPhotoRect.zw;
+  float sh = 0.;
+  for (int i = 0; i < 6; i++){
+    vec2 j = vec2(cos(float(i) * 2.4), sin(float(i) * 2.4)) * (.006 + .004 * float(i));
+    sh += portrait(uv + so + j).a;
+  }
+  sh = sh / 6. * smoothstep(.0, .3, uv.y + so.y);
+  c *= 1. - .62 * sh * uPhotoIn;
+
   if (uv.x > 0. && uv.x < 1. && uv.y > 0. && uv.y < 1.){
-    vec4 ph = texture2D(uPhoto, uv);
-    float a = smoothstep(.55, 1., ph.a);
+    // parallax: nearer parts (nose, shoulders) slide more as the camera orbits
+    vec4 g0 = texture2D(uGeo, uv);
+    vec2 par = vec2(uCam.x, uCam.y) * .25 * (g0.b - .55) * -.07;
+    vec2 uv2 = uv + par;
+    vec4 ph = portrait(uv2);
+    vec4 g = texture2D(uGeo, uv2);
+    float a = smoothstep(.12, .9, ph.a);
     vec3 col = toLin(ph.rgb);
-    // relight: the photo sits in the same warm pool as the wall
-    col *= .62 + .5 * pool;
-    col = mix(vec3(dot(col, vec3(.3,.59,.11))), col, .6) * vec3(.95, 1., 1.03);
-    // fade the feet of the portrait into the floor
+    col = mix(vec3(dot(col, vec3(.3,.59,.11))), col, .72) * vec3(.97, 1., 1.02);
+    vec3 N = normalize(vec3(g.rg * 2. - 1., 0.) + vec3(0., 0., .55));
+    // take the studio's flat front light out, put the cursor's light in
+    float wrap = clamp((dot(N, Ld) + .35) / 1.35, 0., 1.);
+    float shade = .3 + 1.05 * wrap * (.55 + .45 * pool);
+    vec3 lit = col * mix(vec3(1.), vec3(1.04, .98, .9) * shade, .82);
+    // rim from a soft light behind, on the side away from the cursor
+    float o = 3.5 / 800.;
+    float nb = min(min(portrait(uv2 + vec2(o, 0.)).a, portrait(uv2 - vec2(o, 0.)).a), min(portrait(uv2 + vec2(0., o)).a, portrait(uv2 - vec2(0., o)).a));
+    float edge = (1. - smoothstep(.2, 1., nb)) * .5 + pow(clamp(1. - N.z, 0., 1.), 2.) * .5;
+    float away = clamp(dot(normalize(N.xy + 1e-4), normalize(-Ld.xy + 1e-4)), 0., 1.);
+    lit *= 1. + edge * away * .45;
+    // a little sheen where skin and hair face the light
+    vec3 H = normalize(Ld + vec3(0., 0., 1.));
+    lit += vec3(1., .9, .78) * pow(max(dot(N, H), 0.), 28.) * .05 * smoothstep(.15, .5, dot(col, vec3(.33)));
+    // the wall's light wraps around his outline
+    lit = mix(lit, lit + c * 1.2, (1. - smoothstep(.6, 1., nb)) * .35);
     a *= smoothstep(.0, .22, uv.y);
-    // the portrait comes up with the light, never as a cut-out silhouette
-    c = mix(c, col * mix(.35, 1., uPhotoIn), a * smoothstep(0., .7, uPhotoIn));
+    c = mix(c, lit * mix(.35, 1., uPhotoIn), a * smoothstep(0., .7, uPhotoIn));
   }
   return c;
 }
@@ -144,8 +180,6 @@ void main(){
         through[c] = b[c];
       }
       through *= tint;
-      if (uDbg > 3.5){ gl_FragColor = vec4(toSRGB(aces((uDbg < 4.5 ? through : (uDbg < 5.5 ? refl*F : vec3(spec)))*1.2)), 1.); return; }
-      if (uDbg > .5){ vec3 ro2 = refract(ri, n2, ior); gl_FragColor = vec4(uDbg < 1.5 ? vec3(thick*12.) : (uDbg < 2.5 ? ro2*.5+.5 : n2*.5+.5), 1.); return; }
       // edges glow with the internal bounce of the light
       float edge = pow(1. - abs(dot(n, normalize(vec3(0,0,1) * uRot))), 3.);
       vec3 lit = through * (1. - F) + refl * F;
@@ -167,7 +201,7 @@ void main(){
 `;
 
 export class Glass {
-  constructor(S, el, { photo }) {
+  constructor(S, el, { photo, geo }) {
     this.S = S;
     this.el = el;
     this.intro = 0;
@@ -189,6 +223,7 @@ export class Glass {
       uniforms: {
         uSDF: { value: null },
         uPhoto: { value: photo },
+        uGeo: { value: geo },
         uRes: { value: new THREE.Vector2() },
         uSdfRes: { value: new THREE.Vector2(canvas.width, canvas.height) },
         uLight: { value: new THREE.Vector2() },
@@ -208,7 +243,6 @@ export class Glass {
         uLeave: { value: 0 },
         uPhotoRect: { value: new THREE.Vector4() },
         uSeam: seamUniform(),
-        uDbg: { value: +(new URLSearchParams(location.search).get('dbg') || 0) },
       },
     });
     this.mat = mat;

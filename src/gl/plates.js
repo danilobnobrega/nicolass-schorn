@@ -167,13 +167,22 @@ function plateCanvas({ top, big, small }) {
     g.font = `${size}px ${DISPLAY}`;
   }
   g.textAlign = 'center';
-  g.fillText(big, W / 2, H * 0.56);
-  g.font = `700 34px ${SANS}`;
-  g.letterSpacing = '8px';
-  g.fillText(small, W / 2 + 4, H * 0.76);
-  if (top) g.fillText(top, W / 2 + 4, H * 0.3);
+  g.fillText(big, W / 2, H * (top ? 0.575 : 0.56));
+  // labels: brass letters left standing in a black enamel band, readable in any reflection
+  const band = (text, y) => {
+    g.font = `700 36px ${SANS}`;
+    g.letterSpacing = '8px';
+    const w = g.measureText(text).width + 64;
+    g.fillStyle = '#000';
+    g.fillRect(W / 2 - w / 2, y - 38, w, 58);
+    g.globalCompositeOperation = 'destination-out';
+    g.fillText(text, W / 2 + 4, y + 3);
+    g.globalCompositeOperation = 'source-over';
+  };
+  band(small, H * 0.77);
+  if (top) band(top, H * 0.27);
   // a short rule between
-  g.fillRect(W / 2 - 40, H * 0.64, 80, 4);
+  g.fillRect(W / 2 - 40, H * 0.635, 80, 4);
   return c;
 }
 
@@ -271,20 +280,13 @@ export class Plates {
     const sr = this.section.getBoundingClientRect();
     const target = clamp(-sr.top / (sr.height - S.h));
     this.p = damp(this.p, target, 5, S.dt);
-    // a gentle hold on each plate: progress is eased between stations
+    // a straight walk along the wall, one plate centred at each quarter of the scroll
     const n = PLATES.length - 1;
-    const f = this.p * n;
-    const i = Math.min(Math.floor(f), n - 1);
-    const local = f - i;
-    const held = i + ease(clamp((local - 0.18) / 0.64));
-    const x = held * GAP;
+    const x = clamp((this.p - 0.04) / 0.92) * n * GAP;
     this.mx = damp(this.mx, (S.mouse.x / S.w) * 2 - 1, 3, S.dt);
     this.my = damp(this.my, (S.mouse.y / S.h) * 2 - 1, 3, S.dt);
-    // the camera walks along the wall, swinging a little toward the next plate
-    const swing = Math.sin(local * Math.PI) * 0.22 * (i < n ? 1 : 0);
-    const enter = clamp(this.p * 6);
-    this.cam.position.set(x - 0.6 + swing * 2.2 + this.mx * 0.45, -this.my * 0.22, 7.4 - enter * 0.4);
-    this.cam.lookAt(x + swing * 0.6 + this.mx * 0.08, 0, 0);
+    this.cam.position.set(x + this.mx * 0.45, -this.my * 0.22, 7.1);
+    this.cam.lookAt(x + this.mx * 0.1, 0, 0);
 
     // light: where the cursor points, a little off the wall
     this.cam.updateMatrixWorld();

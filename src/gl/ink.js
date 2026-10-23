@@ -50,31 +50,43 @@ function smoothLine(pts, sub = 8) {
 
 function nameStrokes() {
   const strokes = [];
-  let exit = null;
-  for (const ch of 'Nicolas') {
+  const place = (ch, ox, skipFirst = false) => {
     const g = parse(GLYPHS[ch].d);
     const minX = Math.min(...g.flat().map((p) => p[0]));
-    const ox = exit ? exit - minX : 0;
     g.forEach((s, si) => {
-      if (ch === 'i' && si === 0) return; // the dot becomes an accent, written last
-      strokes.push(s.map(([x, y]) => [x + ox, y]));
+      if (skipFirst && si === 0) return;
+      strokes.push(s.map(([x, y]) => [x - minX + ox, y]));
     });
     const last = g[g.length - 1];
-    exit = last[last.length - 1][0] + ox;
+    return { exit: last[last.length - 1][0] - minX + ox, maxX: Math.max(...g.flat().map((p) => p[0])) - minX + ox };
+  };
+  // "Nicolas" is one connected word: each letter starts where the last one left off
+  let x = 0;
+  let iX = 0;
+  for (const ch of 'Nicolas') {
+    if (ch === 'i') iX = x;
+    x = place(ch, x, ch === 'i').exit; // the dot of the i becomes an accent, written later
   }
-  // the accent over the i, then a long underline swash
-  const iX = 24 + 2;
+  // the accent over the i, once the word is done
   strokes.push([
-    [iX + 1.2, 10.2],
-    [iX + 3.2, 7.6],
-    [iX + 4.6, 6],
+    [iX + 3.6, 10.4],
+    [iX + 5.6, 7.8],
+    [iX + 7, 6.2],
   ]);
+  // T. S.
+  const t = place('T', x + 9);
+  place('.', t.maxX - 5);
+  const sx = t.maxX + 3;
+  const sg = place('S', sx);
+  place('.', sg.maxX + 1.5);
+  const end = sg.maxX + 4;
+  // a long underline swash
   strokes.push([
     [4, 27.2],
-    [22, 28.3],
-    [48, 27.3],
-    [exit - 4, 24.6],
-    [exit + 6, 20.8],
+    [28, 28.4],
+    [62, 27.4],
+    [end - 6, 24.8],
+    [end + 4, 21.2],
   ]);
   return strokes.map((s) => smoothLine(s));
 }
@@ -156,7 +168,7 @@ export class Ink {
         const a = prev[prev.length - 1],
           b = s[0];
         T += 0.12 + Math.hypot(b[0] - a[0], b[1] - a[1]) / (SPEED * 6);
-        if (si === strokes.length - 2) T += 0.25; // looking back for the accent
+
       }
       const out = s.map((p, i) => {
         if (i > 0) {
@@ -215,7 +227,7 @@ export class Ink {
   build(W, H) {
     this.stripScene.clear();
     const b = this.box;
-    const scale = Math.min((W * 0.5) / (b.x1 - b.x0), (H * 0.82) / (b.y1 - b.y0));
+    const scale = Math.min((W * 0.62) / (b.x1 - b.x0), (H * 0.8) / (b.y1 - b.y0));
     const ox = (W - (b.x1 - b.x0) * scale) / 2 - b.x0 * scale;
     const oy = (H - (b.y1 - b.y0) * scale) / 2 - b.y0 * scale;
     const wMax = scale * 1.3,
@@ -225,7 +237,8 @@ export class Ink {
       aSide = [],
       aInk = [],
       idx = [];
-    this.lines.forEach((ln) => {
+    this.lines.forEach((ln, li) => {
+      const thin = li === this.lines.length - 1 ? 0.55 : 1;
       let len = 0;
       const base = pos.length / 3;
       ln.forEach((p, i) => {
@@ -242,7 +255,7 @@ export class Ink {
         let w = wMin + (wMax - wMin) * Math.abs(Math.sin(ang - NIB));
         // the pen touches down and lifts off: taper both ends
         const left = (ln.length - 1 - i) / Math.max(1, ln.length - 1);
-        w *= 0.45 + 0.55 * Math.min(1, len / (scale * 1.2)) * Math.min(1, left * 8 + 0.2);
+        w *= (0.45 + 0.55 * Math.min(1, len / (scale * 1.2)) * Math.min(1, left * 8 + 0.2)) * thin;
         const nx = -dy * w * 0.5,
           ny = dx * w * 0.5;
         const X = ox + p.x * scale,

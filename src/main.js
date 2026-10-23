@@ -49,14 +49,44 @@ const io = new IntersectionObserver(
 );
 $$('[data-fade]').forEach((el) => io.observe(el));
 
-/* ───────────── magnetic button ───────────── */
-$$('[data-magnetic]').forEach((el) => {
-  el.addEventListener('pointermove', (e) => {
-    const r = el.getBoundingClientRect();
-    el.style.transform = `translate(${(e.clientX - r.left - r.width / 2) * 0.18}px, ${(e.clientY - r.top - r.height / 2) * 0.3}px)`;
+/* ───────────── service photo that trails the cursor ───────────── */
+const peek = document.createElement('div');
+peek.className = 'peek';
+peek.innerHTML = '<div class="peek__in"></div>';
+document.body.appendChild(peek);
+const peekIn = $('.peek__in', peek);
+const peekImgs = {};
+let peekOn = false;
+$$('[data-row][data-img]').forEach((row) => {
+  const src = row.dataset.img;
+  const img = new Image();
+  img.src = src;
+  img.alt = '';
+  peekIn.appendChild(img);
+  peekImgs[src] = img;
+  row.addEventListener('pointerenter', () => {
+    Object.values(peekImgs).forEach((im) => im.classList.toggle('cur', im === img));
+    peekOn = true;
+    peek.classList.add('on');
   });
-  el.addEventListener('pointerleave', () => (el.style.transform = ''));
-  el.style.transition = 'transform .6s cubic-bezier(.35,0,0,1)';
+  row.addEventListener('pointerleave', () => {
+    peekOn = false;
+    peek.classList.remove('on');
+  });
+});
+const pk = { x: innerWidth / 2, y: innerHeight / 2, r: 0 };
+function stepPeek(dt) {
+  const k = 1 - Math.pow(0.0025, dt);
+  const vx = mouse.x - pk.x;
+  pk.x += vx * k;
+  pk.y += (mouse.y - pk.y) * k;
+  pk.r += (Math.max(-10, Math.min(10, vx * 0.06)) - pk.r) * (1 - Math.pow(0.02, dt));
+  peek.style.transform = `translate(${pk.x}px, ${pk.y}px) translate(-50%, -50%) rotate(${pk.r}deg) scale(${peekOn ? 1 : 0.88})`;
+}
+const mouse = { x: innerWidth / 2, y: innerHeight / 2 };
+addEventListener('pointermove', (e) => {
+  mouse.x = e.clientX;
+  mouse.y = e.clientY;
 });
 
 /* ───────────── webgl ───────────── */
@@ -67,9 +97,9 @@ addEventListener('resize', () => S.resize());
 async function boot() {
   await document.fonts.load('300px "Gloock"');
   await document.fonts.load('400 40px "Inter Tight Variable"');
-  const photo = await loadTexture('/nicolas-cut.png');
+  const [photo, geo] = await Promise.all([loadTexture('/nicolas-cut.png'), loadTexture('/nicolas-geo.png', false)]);
 
-  VIEWS.glass = S.add(new Glass(S, $('[data-view="glass"]'), { photo }));
+  VIEWS.glass = S.add(new Glass(S, $('[data-view="glass"]'), { photo, geo }));
   await VIEWS.glass.ready;
   root.classList.add('is-ready');
   VIEWS.glass.start();
@@ -108,6 +138,7 @@ function frame(now) {
   last = now;
   lenis.raf(now);
   S.step(dt);
+  stepPeek(dt);
   S.render();
   // the header reads dark while the wall is in daylight behind it
   const w = VIEWS.wall;

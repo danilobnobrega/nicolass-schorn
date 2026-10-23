@@ -1,5 +1,6 @@
 import * as THREE from 'three';
-import { quad, clamp, damp, ease, GLSL_COMMON, DISPLAY, SANS, wrap, seamUniform, setSeam } from './core.js';
+import { RoomEnvironment } from 'three/examples/jsm/environments/RoomEnvironment.js';
+import { quad, clamp, damp, ease, smooth, Spring, GLSL_COMMON, DISPLAY, SANS, wrap, seamUniform, setSeam } from './core.js';
 
 /*
  * How I work: a dossier on a dark desk. Each sheet turns on its binding as you scroll,
@@ -38,7 +39,7 @@ function pageCanvas(p, back = false) {
   if (back) {
     // the print shows through the stock (the back face mirrors it on its own)
     g.save();
-    g.globalAlpha = 0.04;
+    g.globalAlpha = 0.03;
     g.drawImage(pageCanvas(p), 0, 0);
     g.restore();
     return c;
@@ -48,37 +49,37 @@ function pageCanvas(p, back = false) {
   const M = 96;
   if (p.cover) {
     g.fillStyle = ink;
-    g.font = `500 22px ${SANS}`;
-    g.letterSpacing = '5px';
-    g.fillText(p.sub, M, M + 20);
+    g.font = `600 26px ${SANS}`;
+    g.letterSpacing = '6px';
+    g.fillText(p.sub, M, M + 22);
     g.fillRect(M, M + 52, W - M * 2, 2);
-    g.font = `150px ${DISPLAY}`;
-    g.letterSpacing = '-4px';
+    g.font = `200px ${DISPLAY}`;
+    g.letterSpacing = '-6px';
     const lines = wrap(g, p.title, W - M * 2);
-    lines.forEach((l, i) => g.fillText(l, M, H - M - 60 - (lines.length - 1 - i) * 150));
+    lines.forEach((l, i) => g.fillText(l, M - 6, H - M - 60 - (lines.length - 1 - i) * 196));
     g.fillStyle = brass;
     g.fillRect(M, H - M - 10, 120, 6);
     return c;
   }
   g.fillStyle = brass;
-  g.font = `340px ${DISPLAY}`;
-  g.letterSpacing = '-12px';
-  g.fillText(p.n, M - 14, M + 270);
+  g.font = `440px ${DISPLAY}`;
+  g.letterSpacing = '-16px';
+  g.fillText(p.n, M - 20, M + 350);
   g.fillStyle = ink;
-  g.font = `92px ${DISPLAY}`;
-  g.letterSpacing = '-2px';
+  g.font = `128px ${DISPLAY}`;
+  g.letterSpacing = '-3px';
   const tl = wrap(g, p.title, W - M * 2);
-  const ty = H * 0.56;
-  tl.forEach((l, i) => g.fillText(l, M, ty + i * 98));
-  g.font = `400 34px ${SANS}`;
+  const ty = H * 0.53;
+  tl.forEach((l, i) => g.fillText(l, M, ty + i * 128));
+  g.font = `400 46px ${SANS}`;
   g.letterSpacing = '0px';
-  g.fillStyle = '#3a3631';
-  const bl = wrap(g, p.text, W - M * 2 - 120);
-  bl.forEach((l, i) => g.fillText(l, M, ty + tl.length * 98 + 60 + i * 52));
+  g.fillStyle = '#34302b';
+  const bl = wrap(g, p.text, W - M * 2 - 40);
+  bl.forEach((l, i) => g.fillText(l, M, ty + tl.length * 128 + 50 + i * 66));
   g.fillStyle = ink;
   g.fillRect(M, H - M, W - M * 2, 1.5);
-  g.font = `500 20px ${SANS}`;
-  g.letterSpacing = '4px';
+  g.font = `600 24px ${SANS}`;
+  g.letterSpacing = '5px';
   g.fillText('NÍCOLAS T. SCHORN', M, H - M + 40);
   g.textAlign = 'right';
   g.fillText(`${p.n} / 03`, W - M, H - M + 40);
@@ -166,8 +167,11 @@ export class Sheets {
       g.position.set(0, 0.002 + (PAGES.length - i) * 0.0028, 0);
       scene.add(g);
       const base = geo.attributes.position.array.slice();
-      return { g, geo, base, t: -1 };
+      return { g, geo, base, t: -1, lift: 0, ls: new Spring(0, 60, 9) };
     });
+
+    this.pen = this.makePen();
+    scene.add(this.pen);
 
     this.rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
     this.post = quad(
@@ -184,6 +188,38 @@ export class Sheets {
     this.resize();
   }
 
+  // a fountain pen left beside the dossier: black lacquer, brass fittings
+  makePen() {
+    const g = new THREE.Group();
+    const lacquer = new THREE.MeshPhysicalMaterial({ color: 0x050404, roughness: 0.4, clearcoat: 0.6, clearcoatRoughness: 0.15 });
+    const brass = new THREE.MeshStandardMaterial({ color: 0xc9a066, metalness: 1, roughness: 0.28 });
+    this.penMats = [lacquer, brass];
+    const add = (geo, mat, x) => {
+      const m = new THREE.Mesh(geo, mat);
+      m.rotation.z = Math.PI / 2;
+      m.position.x = x;
+      m.castShadow = m.receiveShadow = true;
+      g.add(m);
+      return m;
+    };
+    add(new THREE.CylinderGeometry(0.019, 0.016, 0.3, 40), lacquer, 0);
+    add(new THREE.CylinderGeometry(0.021, 0.021, 0.16, 40), lacquer, 0.2);
+    add(new THREE.CylinderGeometry(0.0215, 0.0215, 0.016, 40), brass, 0.13);
+    add(new THREE.CylinderGeometry(0.0215, 0.0215, 0.006, 40), brass, 0.275);
+    add(new THREE.SphereGeometry(0.021, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), lacquer, 0.28).rotation.z = -Math.PI / 2;
+    add(new THREE.CylinderGeometry(0.016, 0.011, 0.04, 32), lacquer, -0.17);
+    add(new THREE.ConeGeometry(0.011, 0.06, 24), brass, -0.218).rotation.z = Math.PI / 2;
+    // the clip
+    const clip = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.004, 0.008), brass);
+    clip.position.set(0.21, 0.024, 0);
+    clip.castShadow = true;
+    g.add(clip);
+    g.position.set(1.36, 0.03, 0.12);
+    g.rotation.y = 1.15;
+    g.scale.setScalar(1.45);
+    return g;
+  }
+
   resize() {
     const S = this.S;
     this.rt.setSize(Math.round(S.w * S.dpr), Math.round(S.h * S.dpr));
@@ -192,9 +228,10 @@ export class Sheets {
   }
 
   // bend one sheet: angle along the width grows from the spine, the free edge lags
-  bend(sh, t) {
-    if (Math.abs(t - sh.t) < 1e-5) return;
+  bend(sh, t, lift = 0) {
+    if (Math.abs(t - sh.t) < 1e-5 && Math.abs(lift - sh.lift) < 1e-4) return;
     sh.t = t;
+    sh.lift = lift;
     const pos = sh.geo.attributes.position.array;
     const theta = Math.PI * ease(t);
     const bendAmt = Math.sin(Math.PI * clamp(t)) * (1 - 0.35 * t);
@@ -216,9 +253,11 @@ export class Sheets {
           z += Math.sin((a + prev) / 2) * ds;
           prev = a;
         } else prev = theta;
-        pos[k * 3] = x;
+        // the free corner nearest the reader lifts toward the hand
+        const cl = lift * Math.pow(s, 2.6) * v * v;
+        pos[k * 3] = x - cl * 0.25;
         pos[k * 3 + 1] = sh.base[k * 3 + 1];
-        pos[k * 3 + 2] = z;
+        pos[k * 3 + 2] = z + cl * 0.11;
       }
     }
     sh.geo.attributes.position.needsUpdate = true;
@@ -232,22 +271,35 @@ export class Sheets {
     const p = clamp(-sr.top / (sr.height - S.h));
     const target = clamp((p - 0.06) / 0.86) * (PAGES.length - 1);
     this.P = damp(this.P, target, 4.5, S.dt);
+    this.mx = damp(this.mx, (S.mouse.x / S.w) * 2 - 1, 3, S.dt);
+    this.my = damp(this.my, (S.mouse.y / S.h) * 2 - 1, 3, S.dt);
+    // choreography: lean in to read each page, rise to watch it turn
+    const open = clamp(this.P);
+    const f = this.P - Math.floor(this.P);
+    const turning = Math.sin(Math.PI * f);
+    const reading = (1 - turning) * smooth(0.02, 0.5, this.P);
+    this.read = damp(this.read ?? 0, reading, 3, S.dt);
+    const cx = open < 1 ? 0.5 - open * 0.5 + 0.5 * this.read * open : 0.5 * this.read;
+    this.cam.position.set(cx + this.mx * 0.2, 3.75 - this.read * 1.05 - open * 0.1, 1.3 - this.read * 0.25 + this.my * 0.12);
+    this.cam.lookAt(cx, 0, 0.04 + this.read * 0.06);
+    this.cam.updateMatrixWorld();
+
+    // where the cursor points on the desk
+    const nx0 = ((S.mouse.x - r.left) / r.width) * 2 - 1;
+    const ny0 = -(((S.mouse.y - r.top) / r.height) * 2 - 1);
+    this.ray.setFromCamera({ x: nx0, y: ny0 }, this.cam);
+    const hit = this.ray.ray.intersectPlane(this.deskPlane, new THREE.Vector3());
+    const top = this.sheets.findIndex((sh, i) => this.P - i < 0.01);
     this.sheets.forEach((sh, i) => {
       const t = clamp(this.P - i);
-      this.bend(sh, t);
-      // turned sheets settle on the left in reverse order; the turning one rides on top
+      // the top sheet's corner rises when the hand comes near it
+      const near = hit && i === top && i < PAGES.length - 1 ? smooth(0.5, 0.08, Math.hypot(hit.x - PW, hit.z - PH / 2)) : 0;
+      sh.ls.t = near;
+      const lift = clamp(sh.ls.step(S.dt), 0, 1.2);
+      this.bend(sh, t, lift);
       const turned = t > 0.5;
       sh.g.position.y = 0.002 + (turned ? i : PAGES.length - i) * 0.0028 + Math.sin(Math.PI * t) * 0.01;
     });
-
-    this.mx = damp(this.mx, (S.mouse.x / S.w) * 2 - 1, 3, S.dt);
-    this.my = damp(this.my, (S.mouse.y / S.h) * 2 - 1, 3, S.dt);
-    // the camera frames the open spread; leans in a touch as it opens
-    const open = clamp(this.P);
-    const cx = 0.5 - open * 0.5;
-    this.cam.position.set(cx + this.mx * 0.22, 3.75 - open * 0.12, 1.3 + this.my * 0.12);
-    this.cam.lookAt(cx, 0, 0.06);
-    this.cam.updateMatrixWorld();
 
     // the lamp hangs where the cursor points, above the desk
     const nx = ((S.light.x - r.left) / r.width) * 2 - 1;
@@ -263,6 +315,15 @@ export class Sheets {
   }
 
   prerender(renderer) {
+    if (!this.env) {
+      const pm = new THREE.PMREMGenerator(renderer);
+      this.env = pm.fromScene(new RoomEnvironment(), 0.04).texture;
+      this.penMats.forEach((m) => {
+        m.envMap = this.env;
+        m.envMapIntensity = 0.35;
+        m.needsUpdate = true;
+      });
+    }
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.setRenderTarget(this.rt);

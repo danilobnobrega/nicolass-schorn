@@ -54,7 +54,7 @@ a:hover .swap > span + span, button:hover .swap > span + span { transform: trans
 .menu__list { width: 100%; }
 .menu__list li { border-top: 1px solid var(--line); overflow: hidden; }
 .menu__list li:last-child { border-bottom: 1px solid var(--line); }
-.menu__list a { display: flex; align-items: baseline; gap: 34px; padding: 14px 0; font-family: var(--serif); font-size: 76px; line-height: 1; letter-spacing: -0.02em; transform: translateY(110%); transition: transform 0.9s var(--ease), color 0.4s; }
+.menu__list a { display: flex; align-items: baseline; gap: 34px; padding: 18px 0 16px; font-family: var(--serif); font-size: 76px; line-height: 1; letter-spacing: -0.02em; transform: translateY(110%); transition: transform 0.9s var(--ease), color 0.4s; }
 .menu__list a i { font-family: var(--sans); font-style: normal; font-size: 13px; color: var(--mute); width: 40px; }
 .menu-open .menu__list a { transform: none; }
 .menu-open .menu__list li:nth-child(2) a { transition-delay: 0.05s; }
@@ -62,7 +62,7 @@ a:hover .swap > span + span, button:hover .swap > span + span { transform: trans
 .menu-open .menu__list li:nth-child(4) a { transition-delay: 0.15s; }
 .menu-open .menu__list li:nth-child(5) a { transition-delay: 0.2s; }
 .menu__list a:hover { color: var(--brass); }
-.menu__list .swap { line-height: 1.08; }
+.menu__list .swap { line-height: 1.45; margin: -.2em 0; }
 
 .eyebrow { font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); }
 [data-fade] { opacity: 0; transform: translateY(18px); transition: opacity 1.4s var(--ease), transform 1.4s var(--ease); }
@@ -70,7 +70,7 @@ a:hover .swap > span + span, button:hover .swap > span + span { transform: trans
 
 /* 1 · hero */
 .hero { position: relative; height: 100vh; }
-.hero__role { position: absolute; left: 0; right: 0; bottom: 5.2vh; text-align: center; font-size: 13px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mute); opacity: 0; transition: opacity 1.6s var(--ease) 2.4s; }
+.hero__role { position: absolute; left: 0; right: 0; bottom: 4.4vh; text-shadow: 0 0 14px rgba(10,9,8,.9), 0 0 3px rgba(10,9,8,.8); text-align: center; font-size: 13px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--mute); opacity: 0; transition: opacity 1.6s var(--ease) 2.4s; }
 .hero__role em { font-style: normal; color: var(--brass); margin: 0 0.6em; }
 .is-ready .hero__role { opacity: 1; }
 
@@ -89,9 +89,9 @@ a:hover .swap > span + span, button:hover .swap > span + span { transform: trans
 .work { padding: 24vh 44px 22vh; }
 .work__list { position: relative; margin-top: 7vh; border-top: 1px solid var(--line); }
 .row { border-bottom: 1px solid var(--line); }
-.row__head { width: 100%; display: flex; align-items: center; gap: 4vw; text-align: left; padding: 2.2vh 0; }
+.row__head { width: 100%; display: flex; align-items: center; gap: 4vw; text-align: left; padding: 2.6vh 0 2.4vh; }
 .row__head i { font-style: normal; font-size: 13px; color: var(--mute); width: 40px; transition: color 0.5s; }
-.row__title { font-family: var(--serif); font-weight: 400; font-size: 9.2vw; line-height: 0.96; letter-spacing: -0.035em; color: transparent; }
+.row__title { font-family: var(--serif); font-weight: 400; font-size: 7.2vw; line-height: 0.96; letter-spacing: -0.035em; color: transparent; }
 .row__body { display: grid; grid-template-rows: 0fr; transition: grid-template-rows 0.9s var(--ease); }
 .row__body > div { overflow: hidden; }
 .row__body p { max-width: 520px; margin: 0 0 4vh calc(40px + 4vw); font-size: 18px; line-height: 1.6; color: #c9c1b3; opacity: 0; transform: translateY(12px); transition: opacity 0.7s var(--ease), transform 0.9s var(--ease); }
@@ -123,3 +123,11 @@ a:hover .swap > span + span, button:hover .swap > span + span { transform: trans
 .foot__legal { max-width: 980px; padding-top: 30px; border-top: 1px solid var(--line); }
 .foot__line { display: flex; justify-content: space-between; margin-top: 26px; }
 :focus-visible { outline: 1px solid var(--brass); outline-offset: 5px; border-radius: 4px; }
+
+/* service photo that trails the cursor */
+.peek { position: fixed; z-index: 12; left: 0; top: 0; width: 250px; height: 312px; pointer-events: none; opacity: 0; transition: opacity .45s var(--ease); }
+.peek.on { opacity: 1; }
+.peek__in { position: absolute; inset: 0; overflow: hidden; clip-path: inset(100% 0 0 0); transition: clip-path .8s var(--ease); box-shadow: 0 30px 60px -20px rgba(0,0,0,.6); }
+.peek.on .peek__in { clip-path: inset(0 0 0 0); }
+.peek img { position: absolute; inset: -6%; width: 112%; height: 112%; object-fit: cover; opacity: 0; transform: scale(1.12); transition: opacity .6s var(--ease), transform 1.2s var(--ease); }
+.peek img.cur { opacity: 1; transform: scale(1); }

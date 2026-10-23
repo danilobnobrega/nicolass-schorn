@@ -26,11 +26,13 @@ float sdfRow(vec2 px, int i){
   return texture2D(uSDF, uv).r / uK + length(l - q);
 }
 float sdfAt(vec2 px, out int row){
+  // the row whose band is nearest: padded bands overlap, so never take the first hit
   row = -1;
+  float best = 1e9;
   for (int i = 0; i < ${N}; i++){
     vec4 r = uRows[i];
-    vec2 l = px - r.xy;
-    if (l.x > -60. && l.y > -60. && l.x < r.z + 60. && l.y < r.w + 60.){ row = i; break; }
+    float dy = abs(px.y - (r.y + r.w * .5));
+    if (px.x > r.x - 60. && px.x < r.x + r.z + 60. && dy < r.w * .5 + 60. && dy < best){ best = dy; row = i; }
   }
   return row < 0 ? 1e4 : sdfRow(px, row);
 }
@@ -136,7 +138,9 @@ export class Relief {
     const lr = this.el.getBoundingClientRect();
     const t0 = this.titles[0].getBoundingClientRect();
     const W = Math.round(lr.width);
-    const Hs = Math.ceil(t0.height);
+    // room above and below the line box: accents and descenders overflow it
+    this.pad = Math.ceil(parseFloat(getComputedStyle(this.titles[0]).fontSize) * 0.32);
+    const Hs = Math.ceil(t0.height) + this.pad * 2;
     if (W === this.W && Hs === this.Hs) return;
     this.W = W;
     this.Hs = Hs;
@@ -182,7 +186,7 @@ export class Relief {
       best = 1e9;
     this.titles.forEach((t, i) => {
       const tr = t.getBoundingClientRect();
-      u.uRows.value[i].set(tr.left - r.left, tr.top - r.top, tr.width, tr.height);
+      u.uRows.value[i].set(tr.left - r.left, tr.top - r.top - this.pad, tr.width, tr.height + this.pad * 2);
       const dd = Math.abs(tr.top + tr.height / 2 - S.h * 0.5);
       if (dd < best && dd < S.h * 0.3) {
         best = dd;
