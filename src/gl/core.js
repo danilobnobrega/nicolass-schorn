@@ -120,7 +120,7 @@ export function createGL(canvas) {
     S.w = window.innerWidth;
     S.h = window.innerHeight;
     S.mobile = S.w <= 820;
-    S.dpr = Math.min(window.devicePixelRatio || 1, S.mobile ? 1.35 : 1.5);
+    S.dpr = Math.min(window.devicePixelRatio || 1, S.touch ? 1 : 1.5);
     renderer.setPixelRatio(S.dpr);
     // size the canvas in px too: on phones 100vh and innerHeight disagree
     renderer.setSize(S.w, S.h, true);
@@ -187,6 +187,7 @@ export function createGL(canvas) {
   };
 
   S.render = () => {
+    if (S.lost) return;
     renderer.setScissorTest(false);
     renderer.setRenderTarget(null);
     renderer.setViewport(0, 0, S.w, S.h);
@@ -208,6 +209,18 @@ export function createGL(canvas) {
       v.render(renderer);
       renderer.setScissorTest(false);
     }
+  };
+
+  // if the phone's GPU gives up, keep the page readable and try again when it comes back
+  canvas.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    S.lost = true;
+    document.documentElement.classList.add('gl-lost');
+    window.__dbg?.('WEBGL CONTEXT LOST');
+  });
+  canvas.addEventListener('webglcontextrestored', () => location.reload());
+  renderer.debug.onShaderError = (gl, prog, vs, fs) => {
+    window.__dbg?.('SHADER ' + (gl.getShaderInfoLog(fs) || gl.getShaderInfoLog(vs) || gl.getProgramInfoLog(prog) || '').slice(0, 400));
   };
 
   S.resize();

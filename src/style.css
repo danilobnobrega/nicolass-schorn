@@ -172,3 +172,8 @@ a:hover .swap > span + span, button:hover .swap > span + span { transform: trans
   .foot { padding: 0 20px 28px; }
   .foot__line { flex-direction: column; gap: 6px; }
 }
+
+/* fallback when WebGL is unavailable or lost: the photo and the name, plainly */
+.gl-lost .hero { background: url(/nicolas.jpg) center 20% / cover; }
+.gl-lost .hero::after { content: 'Nícolas Schorn'; position: absolute; left: 0; right: 0; bottom: 12vh; text-align: center; font-family: var(--serif); font-size: clamp(48px, 12vw, 160px); line-height: .95; color: var(--bone); text-shadow: 0 4px 30px rgba(0,0,0,.6); }
+.gl-lost .row__title { color: var(--bone); }

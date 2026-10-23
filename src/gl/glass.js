@@ -8,7 +8,6 @@ import { sdfTexture, textCanvas } from './sdf.js';
  * different index per channel and lands on the portrait behind it.
  */
 const FRAG = /* glsl */ `
-precision highp float;
 varying vec2 vUv;
 uniform sampler2D uSDF, uPhoto, uGeo;
 uniform vec2 uRes, uSdfRes, uLight;
@@ -129,7 +128,7 @@ void main(){
   if (hit.x < hit.y && hit.y > 0. && uDepth > .0035){
     float t = max(hit.x, 0.);
     bool found = false;
-    for (int i = 0; i < 128; i++){
+    for (int i = 0; i < OUTER; i++){
       vec3 p = ro + rd*t;
       float d = map(p);
       if (d < .0004){ found = true; break; }
@@ -158,7 +157,7 @@ void main(){
       float ti = .004;
       vec3 q = p + ri * ti;
       float thick = 0.;
-      for (int i = 0; i < 64; i++){
+      for (int i = 0; i < INNER; i++){
         float d = -map(q);
         if (d < .0005) break;
         float s = max(d, .0015);
@@ -217,7 +216,8 @@ export class Glass {
     });
     const mat = new THREE.ShaderMaterial({
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',
-      fragmentShader: FRAG,
+      // fewer march steps on phones: same image, a fraction of the GPU time
+      fragmentShader: (S.touch ? ['#define OUTER 80', '#define INNER 36'] : ['#define OUTER 128', '#define INNER 64']).join('\n') + '\n' + FRAG,
       depthTest: false,
       depthWrite: false,
       uniforms: {

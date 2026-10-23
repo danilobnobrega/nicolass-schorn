@@ -111,12 +111,14 @@ window.__S = S;
 addEventListener('resize', () => S.resize());
 
 async function boot() {
+  setTimeout(() => root.classList.add('is-ready'), 8000);
   await document.fonts.load('300px "Gloock"');
   await document.fonts.load('400 40px "Inter Tight Variable"');
   const [photo, geo] = await Promise.all([loadTexture('/nicolas-cut.png'), loadTexture('/nicolas-geo.png', false)]);
 
   VIEWS.glass = S.add(new Glass(S, $('[data-view="glass"]'), { photo, geo }));
-  await VIEWS.glass.ready;
+  // never leave the page blank: if the hero is slow, open anyway
+  await Promise.race([VIEWS.glass.ready, new Promise((r) => setTimeout(r, 5000))]);
   root.classList.add('is-ready');
   VIEWS.glass.start();
   setTimeout(() => lenis.start(), 1400);
