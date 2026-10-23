@@ -122,6 +122,21 @@ function stepPeek(dt) {
     setTimeout(() => sessionStorage.removeItem('nic-boot'), 15000);
   } catch (e) {}
   log(navigator.userAgent);
+  // on the live site, phones report their diagnostics to the project's own logs
+  if (matchMedia('(hover: none), (pointer: coarse)').matches && !/localhost|192\.168/.test(location.host)) {
+    const id = Math.random().toString(36).slice(2, 8);
+    const send = (tag) => {
+      try {
+        navigator.sendBeacon('/api/diag', new Blob([JSON.stringify({ id, tag, lines })], { type: 'text/plain' }));
+      } catch (e) {}
+    };
+    setTimeout(() => send('4s'), 4000);
+    setTimeout(() => send('12s'), 12000);
+    const trouble = window.__trouble;
+    let sent = 0;
+    window.__trouble = (why) => (trouble(why), sent++ < 5 && setTimeout(() => send('trouble'), 300));
+    addEventListener('pagehide', () => send('hide'));
+  }
 }
 
 const S = createGL($('#gl'));
