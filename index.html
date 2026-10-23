@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=1440" />
+  <title>Nícolas T. Schorn · Private Banker</title>
+  <meta name="description" content="Nícolas T. Schorn, Private Banker no Grupo Ável. Planejamento patrimonial, sucessório e investimentos para pessoas, famílias e empresas." />
+  <meta name="theme-color" content="#12110f" />
+  <meta property="og:title" content="Nícolas T. Schorn · Private Banker" />
+  <meta property="og:description" content="Planejamento patrimonial e investimentos, com o ecossistema XP." />
+  <meta property="og:image" content="/nicolas.jpg" />
+  <link rel="icon" href="/favicon.svg" />
+</head>
+<body>
+  <canvas id="gl" aria-hidden="true"></canvas>
+
+  <header class="hdr" data-hdr>
+    <a class="hdr__brand" href="#topo" data-nav><span>Nícolas T. Schorn</span></a>
+    <nav class="hdr__nav">
+      <button class="hdr__menu" type="button" data-menu-btn aria-expanded="false" aria-controls="menu">
+        <span class="swap"><span data-menu-label>Menu</span><span aria-hidden="true" data-menu-label2>Menu</span></span>
+        <i class="hdr__dots" aria-hidden="true"><b></b><b></b></i>
+      </button>
+      <a class="pill" href="#contato" data-nav><span class="swap"><span>Agendar conversa</span><span aria-hidden="true">Agendar conversa</span></span></a>
+    </nav>
+  </header>
+
+  <div class="menu" id="menu" data-menu aria-hidden="true">
+    <ol class="menu__list">
+      <li><a href="#sobre" data-nav><i>01</i><span class="swap"><span>Sobre</span><span aria-hidden="true">Sobre</span></span></a></li>
+      <li><a href="#numeros" data-nav><i>02</i><span class="swap"><span>Reconhecimentos</span><span aria-hidden="true">Reconhecimentos</span></span></a></li>
+      <li><a href="#atuacao" data-nav><i>03</i><span class="swap"><span>Atuação</span><span aria-hidden="true">Atuação</span></span></a></li>
+      <li><a href="#metodo" data-nav><i>04</i><span class="swap"><span>Como trabalho</span><span aria-hidden="true">Como trabalho</span></span></a></li>
+      <li><a href="#contato" data-nav><i>05</i><span class="swap"><span>Contato</span><span aria-hidden="true">Contato</span></span></a></li>
+    </ol>
+  </div>
+
+  <main>
+    <!-- 1 · Abertura: o nome em vidro -->
+    <section class="hero" id="topo" data-view="glass">
+      <h1 class="sr">Nícolas Schorn</h1>
+      <p class="hero__role" data-in>Private Banker <em>·</em> Grupo Ável</p>
+    </section>
+
+    <!-- 2 · Sobre: do desenho técnico ao tipo -->
+    <section class="about" id="sobre">
+      <p class="eyebrow" data-fade>Sobre</p>
+      <div class="about__draft" data-view="draft">
+        <h2 class="sr" data-draft-text>Engenheiro de formação, escolhi o mercado financeiro. Hoje cuido de patrimônios com o mesmo rigor de quem calcula uma estrutura.</h2>
+      </div>
+      <div class="about__cols">
+        <p data-fade>Atuo no segmento de Alta Renda e Private, com foco em relacionamentos de longo prazo. Cada estratégia é desenhada a partir dos objetivos do cliente e da família.</p>
+        <p data-fade>Investimentos, planejamento patrimonial e sucessório, previdência, crédito e soluções internacionais, estruturados em conjunto com especialistas do ecossistema XP.</p>
+      </div>
+    </section>
+
+    <!-- 3 · Reconhecimentos: placas de latão -->
+    <section class="plates" id="numeros">
+      <div class="plates__sticky">
+        <div class="plates__view" data-view="plates"></div>
+        <p class="eyebrow plates__eyebrow" data-fade>Reconhecimentos</p>
+        <ul class="sr">
+          <li>Mais de R$ 100 milhões em custódia adquirida</li>
+          <li>Top 15 no ranking da XP em 2026</li>
+          <li>Top 77 no ranking da XP em 2025</li>
+          <li>Melhor NPS do Grupo Ável em 2025</li>
+        </ul>
+      </div>
+    </section>
+
+    <!-- 4 · Atuação: a lista em relevo -->
+    <section class="work" id="atuacao">
+      <p class="eyebrow" data-fade>Atuação</p>
+      <ol class="work__list" data-view="relief">
+        <li class="row" data-row>
+          <button class="row__head" type="button" aria-expanded="false"><i>01</i><h3 class="row__title" data-relief>Investimentos</h3></button>
+          <div class="row__body"><div><p>Carteiras construídas para o seu objetivo, com acesso à plataforma completa da XP: renda fixa, ações, fundos, previdência e produtos estruturados.</p></div></div>
+        </li>
+        <li class="row" data-row>
+          <button class="row__head" type="button" aria-expanded="false"><i>02</i><h3 class="row__title" data-relief>Sucessão</h3></button>
+          <div class="row__body"><div><p>Planejamento patrimonial e sucessório para proteger o que foi construído e organizar a passagem entre gerações, com holdings, previdência e seguros.</p></div></div>
+        </li>
+        <li class="row" data-row>
+          <button class="row__head" type="button" aria-expanded="false"><i>03</i><h3 class="row__title" data-relief>Previdência</h3></button>
+          <div class="row__body"><div><p>Previdência privada como ferramenta de longo prazo, de eficiência tributária e de planejamento sucessório.</p></div></div>
+        </li>
+        <li class="row" data-row>
+          <button class="row__head" type="button" aria-expanded="false"><i>04</i><h3 class="row__title" data-relief>Crédito</h3></button>
+          <div class="row__body"><div><p>Soluções de crédito para pessoas e empresas, estruturadas junto ao seu patrimônio, sem desmontar a estratégia de investimentos.</p></div></div>
+        </li>
+        <li class="row" data-row>
+          <button class="row__head" type="button" aria-expanded="false"><i>05</i><h3 class="row__title" data-relief>Internacional</h3></button>
+          <div class="row__body"><div><p>Investimentos e estruturas fora do Brasil para diversificar moeda, mercado e jurisdição, com os especialistas internacionais do ecossistema XP.</p></div></div>
+        </li>
+      </ol>
+      <p class="work__who" data-fade>Para pessoas físicas de alta renda, empresários, estruturas PJ e famílias.</p>
+    </section>
+
+    <!-- 5 · Como trabalho: o dossiê -->
+    <section class="method" id="metodo">
+      <div class="method__sticky">
+        <div class="method__view" data-view="sheets"></div>
+        <ol class="sr">
+          <li><h3>Escuta antes da proposta</h3><p>Primeiro entendo os objetivos do cliente, da família e da empresa. A estratégia vem depois.</p></li>
+          <li><h3>Especialistas ao lado</h3><p>Sucessão, crédito, previdência e mercado internacional com o apoio dos especialistas do ecossistema XP.</p></li>
+          <li><h3>Revisão contínua</h3><p>Patrimônio muda com a vida. As estratégias são revistas ao longo do tempo, junto com você.</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <!-- 6 · Um dia de luz na parede -->
+    <section class="wall" id="filosofia">
+      <div class="wall__sticky">
+        <div class="wall__view" data-view="wall"></div>
+        <blockquote class="sr">Acredito em relações de longo prazo.</blockquote>
+      </div>
+    </section>
+
+    <!-- 7 · Contato: a assinatura -->
+    <section class="contact" id="contato">
+      <h2 class="contact__title" data-fade>Vamos conversar sobre o seu patrimônio?</h2>
+      <div class="contact__ink" data-view="ink" role="img" aria-label="Nícolas, escrito à tinta"></div>
+      <div class="contact__actions" data-fade>
+        <a class="pill pill--big" href="https://wa.me/5551999999999" target="_blank" rel="noopener" data-magnetic><span class="swap"><span>Chamar no WhatsApp</span><span aria-hidden="true">Chamar no WhatsApp</span></span></a>
+        <a class="ulink" href="mailto:nicolas.schorn@avelinvestimentos.com.br">E-mail</a>
+        <a class="ulink" href="https://www.linkedin.com/" target="_blank" rel="noopener">LinkedIn</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">
+    <p class="foot__legal">Nícolas T. Schorn atua como assessor de investimentos vinculado ao Grupo Ável, escritório de assessoria de investimentos credenciado à XP Investimentos CCTVM S.A., na forma da Resolução CVM nº 178/2023. Rankings e reconhecimentos citados referem-se a programas da XP e do Grupo Ável nos anos indicados. Investimentos envolvem riscos, inclusive de perda do capital. Rentabilidade passada não é garantia de rentabilidade futura. As informações deste site têm caráter informativo e não constituem recomendação de investimento.</p>
+    <p class="foot__line"><span>© 2026 Nícolas T. Schorn</span><span>Private Banker · Grupo Ável</span></p>
+  </footer>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>
