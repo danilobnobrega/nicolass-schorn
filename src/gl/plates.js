@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { RoundedBoxGeometry } from 'three/examples/jsm/geometries/RoundedBoxGeometry.js';
-import { quad, clamp, damp, ease, GLSL_COMMON, DISPLAY, SANS, seamUniform, setSeam } from './core.js';
+import { quad, clamp, damp, ease, smooth, GLSL_COMMON, DISPLAY, SANS, seamUniform, setSeam } from './core.js';
 import { sdfTexture } from './sdf.js';
 
 /*
@@ -289,7 +289,13 @@ export class Plates {
     this.p = damp(this.p, target, 5, S.dt);
     // a straight walk along the wall, one plate centred at each quarter of the scroll
     const n = PLATES.length - 1;
-    const x = clamp((this.p - 0.04) / 0.92) * n * GAP;
+    let f = clamp((this.p - 0.04) / 0.92) * n;
+    // on a narrow screen a plate fills the width, so the walk rests on each one
+    if (this.cam.aspect < 0.9) {
+      const i = Math.min(Math.floor(f), n - 1);
+      f = i + smooth(0.2, 0.8, f - i);
+    }
+    const x = f * GAP;
     this.mx = damp(this.mx, (S.mouse.x / S.w) * 2 - 1, 3, S.dt);
     this.my = damp(this.my, (S.mouse.y / S.h) * 2 - 1, 3, S.dt);
     // far enough that a plate (and a hint of the next) fits the width of the screen

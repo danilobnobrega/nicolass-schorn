@@ -2,6 +2,13 @@ import './style.css';
 import Lenis from 'lenis';
 import { createGL, loadTexture, clamp, disposeDeep } from './gl/core.js';
 import { Glass } from './gl/glass.js';
+// every scene in the one bundle: a phone never has to fetch a second script mid-deploy
+import { Draft } from './gl/draft.js';
+import { Plates } from './gl/plates.js';
+import { Relief } from './gl/relief.js';
+import { Sheets } from './gl/sheets.js';
+import { Wall } from './gl/wall.js';
+import { Ink } from './gl/ink.js';
 
 const $ = (s, c = document) => c.querySelector(s);
 const $$ = (s, c = document) => [...c.querySelectorAll(s)];
@@ -122,6 +129,7 @@ function stepPeek(dt) {
     sessionStorage.setItem('nic-boot', Date.now());
     setTimeout(() => sessionStorage.removeItem('nic-boot'), 15000);
   } catch (e) {}
+  log('build ' + (typeof __BUILD__ !== 'undefined' ? __BUILD__ : 'dev'));
   log(navigator.userAgent);
   // on the live site, phones report their diagnostics to the project's own logs
   if (matchMedia('(hover: none), (pointer: coarse)').matches && !/localhost|192\.168/.test(location.host)) {
@@ -210,12 +218,12 @@ async function boot() {
   // the other scenes: all at once on a desktop; on a phone each one is built as it
   // comes within reach and torn down once it is far behind, so memory stays small
   const SCENES = [
-    ['draft', '[data-view="draft"]', () => import('./gl/draft.js').then((m) => new m.Draft(S, $('[data-view="draft"]'), $('[data-draft-text]').textContent))],
-    ['plates', '[data-view="plates"]', () => import('./gl/plates.js').then((m) => new m.Plates(S, $('[data-view="plates"]'), $('.plates')))],
-    ['relief', '[data-view="relief"]', () => import('./gl/relief.js').then((m) => new m.Relief(S, $('[data-view="relief"]'), $$('[data-relief]')))],
-    ['sheets', '[data-view="sheets"]', () => import('./gl/sheets.js').then((m) => new m.Sheets(S, $('[data-view="sheets"]'), $('.method')))],
-    ['wall', '[data-view="wall"]', () => import('./gl/wall.js').then((m) => new m.Wall(S, $('[data-view="wall"]'), $('.wall')))],
-    ['ink', '[data-view="ink"]', () => import('./gl/ink.js').then((m) => new m.Ink(S, $('[data-view="ink"]')))],
+    ['draft', '[data-view="draft"]', async () => new Draft(S, $('[data-view="draft"]'), $('[data-draft-text]').textContent)],
+    ['plates', '[data-view="plates"]', async () => new Plates(S, $('[data-view="plates"]'), $('.plates'))],
+    ['relief', '[data-view="relief"]', async () => new Relief(S, $('[data-view="relief"]'), $$('[data-relief]'))],
+    ['sheets', '[data-view="sheets"]', async () => new Sheets(S, $('[data-view="sheets"]'), $('.method'))],
+    ['wall', '[data-view="wall"]', async () => new Wall(S, $('[data-view="wall"]'), $('.wall'))],
+    ['ink', '[data-view="ink"]', async () => new Ink(S, $('[data-view="ink"]'))],
   ].map(([key, sel, make]) => ({ key, el: $(sel), make, state: 'idle' }));
   const sortViews = () => S.views.sort((a, b) => a.el.getBoundingClientRect().top - b.el.getBoundingClientRect().top);
   const build = async (sc) => {

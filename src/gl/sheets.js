@@ -95,6 +95,32 @@ function shrink(c, k) {
   return o;
 }
 
+// phones: paper and desk lit by the lamp in a small hand-written shader. The scene uses
+// no built-in three.js lights at all (those crashed an iPhone's GPU here)
+const LITE_VS = /* glsl */ `
+varying vec2 vUv; varying vec3 vW; varying vec3 vN;
+void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.); vW = w.xyz; vN = mat3(modelMatrix) * normal;
+  gl_Position = projectionMatrix * viewMatrix * w; }
+`;
+const LITE_FS = /* glsl */ `
+precision highp float;
+varying vec2 vUv; varying vec3 vW; varying vec3 vN;
+uniform sampler2D uMapF, uMapB;
+uniform vec3 uLamp, uTarget;
+uniform float uI, uRepeat;
+void main(){
+  vec3 N = normalize(vN) * (gl_FrontFacing ? 1. : -1.);
+  vec3 alb = gl_FrontFacing ? texture2D(uMapF, vUv * uRepeat).rgb : texture2D(uMapB, vUv * uRepeat).rgb;
+  vec3 L = uLamp - vW; float d = length(L); L /= d;
+  float cosA = dot(-L, normalize(uTarget - uLamp));
+  float cone = smoothstep(cos(.75), cos(.75 * .35), cosA);
+  float ndl = max(dot(N, L), 0.);
+  vec3 lamp = vec3(1., .906, .784) * uI * cone * ndl / pow(d, 1.6) / 3.14159;
+  vec3 hemi = mix(vec3(.10,.09,.07), vec3(.54,.52,.47), N.y * .5 + .5) * .22;
+  gl_FragColor = vec4(alb * (lamp + hemi), 1.);
+}
+`;
+
 const POST = /* glsl */ `
 precision highp float;
 varying vec2 vUv;
@@ -142,8 +168,15 @@ export class Sheets {
     // phones get the same dossier with simple diffuse light and no shadow map: the full
     // version made the GPU of an iPhone drop the context
     const lite = (this.lite = S.touch);
-    const Mat = lite ? THREE.MeshLambertMaterial : THREE.MeshStandardMaterial;
-    const desk = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), new Mat(lite ? { map: dt } : { map: dt, roughness: 0.8, metalness: 0 }));
+    this.liteU = { uLamp: { value: new THREE.Vector3() }, uTarget: { value: new THREE.Vector3() }, uI: { value: 0 } };
+    const liteMat = (f, b, repeat = 1) =>
+      new THREE.ShaderMaterial({
+        vertexShader: LITE_VS,
+        fragmentShader: LITE_FS,
+        side: THREE.DoubleSide,
+        uniforms: { ...this.liteU, uMapF: { value: f }, uMapB: { value: b || f }, uRepeat: { value: repeat } },
+      });
+    const desk = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), lite ? liteMat(dt, dt, 10) : new THREE.MeshStandardMaterial({ map: dt, roughness: 0.8, metalness: 0 }));
     desk.rotation.x = -Math.PI / 2;
     desk.receiveShadow = true;
     scene.add(desk);
@@ -156,8 +189,10 @@ export class Sheets {
     this.lamp.shadow.radius = 6;
     this.lamp.shadow.camera.near = 0.5;
     this.lamp.shadow.camera.far = 10;
-    scene.add(this.lamp, this.lamp.target);
-    scene.add(new THREE.HemisphereLight(0x8a8478, 0x1a1712, 0.22));
+    if (!lite) {
+      scene.add(this.lamp, this.lamp.target);
+      scene.add(new THREE.HemisphereLight(0x8a8478, 0x1a1712, 0.22));
+    }
 
     this.sheets = PAGES.map((p, i) => {
       const geo = new THREE.PlaneGeometry(PW, PH, SX, SY);
@@ -171,14 +206,18 @@ export class Sheets {
       }
       const back = new THREE.CanvasTexture(shrink(pageCanvas(p, true), S.touch ? 0.5 : 1));
       back.colorSpace = THREE.SRGBColorSpace;
-      const mF = new Mat(lite ? { map: front, side: THREE.FrontSide } : { map: front, roughness: 0.92, side: THREE.FrontSide });
-      const mB = new Mat(lite ? { map: back, side: THREE.BackSide } : { map: back, roughness: 0.95, side: THREE.BackSide });
       const g = new THREE.Group();
-      const a = new THREE.Mesh(geo, mF);
-      const b = new THREE.Mesh(geo, mB);
-      a.castShadow = b.castShadow = !lite;
-      a.receiveShadow = b.receiveShadow = !lite;
-      g.add(a, b);
+      if (lite) {
+        back.generateMipmaps = false;
+        back.minFilter = THREE.LinearFilter;
+        g.add(new THREE.Mesh(geo, liteMat(front, back)));
+      } else {
+        const a = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: front, roughness: 0.92, side: THREE.FrontSide }));
+        const b = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ map: back, roughness: 0.95, side: THREE.BackSide }));
+        a.castShadow = b.castShadow = true;
+        a.receiveShadow = b.receiveShadow = true;
+        g.add(a, b);
+      }
       // flat on the desk, stacked: the cover on top
       g.rotation.x = -Math.PI / 2;
       g.position.set(0, 0.002 + (PAGES.length - i) * 0.0028, 0);
@@ -293,12 +332,15 @@ export class Sheets {
     this.lamp.target.position.set(this.tmp.x, 0, this.tmp.z);
     const vis = clamp((Math.min(sr.bottom, S.h) - Math.max(sr.top, 0)) / S.h);
     this.lamp.intensity = 16 * ease(vis);
+    this.liteU.uLamp.value.copy(this.lamp.position);
+    this.liteU.uTarget.value.copy(this.lamp.target.position);
+    this.liteU.uI.value = this.lamp.intensity;
     this.post.mesh.material.uniforms.uTime.value = S.time;
     setSeam(this.post.mesh.material.uniforms.uSeam, r, S);
   }
 
   prerender(renderer) {
-    renderer.shadowMap.enabled = !this.lite;
+    if (!this.lite) renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.setRenderTarget(this.rt);
     renderer.setClearColor(0x000000, 1);

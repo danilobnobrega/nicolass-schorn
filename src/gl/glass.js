@@ -275,7 +275,7 @@ export class Glass {
     const tw = 2 * aspect * (this.stacked ? 0.9 : 0.94);
     const th = (tw * this.maskH) / this.maskW;
     u.uTextSize.value.set(tw, th);
-    u.uTextCenter.value.set(0, this.stacked ? -0.98 + th / 2 + 0.12 : -0.6);
+    u.uTextCenter.value.set(0, this.stacked ? -0.98 + th / 2 + 0.17 : -0.6);
     u.uTexel.value = tw / this.maskW;
     // lens profile and thickness follow the size of the letters
     this.gk = Math.min(1, (tw * 2260) / (this.maskW * 3.0));

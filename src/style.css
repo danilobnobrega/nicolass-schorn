@@ -142,7 +142,7 @@ a:hover .swap > span + span, button:hover .swap > span + span { transform: trans
   .eyebrow { font-size: 11px; }
 
   .hero { height: 100lvh; }
-  .hero__role { bottom: 5lvh; font-size: 10px; letter-spacing: .18em; }
+  .hero__role { bottom: 2.4lvh; font-size: 10px; letter-spacing: .18em; }
 
   .about { padding: 18lvh 20px 14lvh; }
   .about__draft { margin: -4lvh -20px -8lvh; height: 70lvh; }
