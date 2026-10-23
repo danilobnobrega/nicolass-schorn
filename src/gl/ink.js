@@ -291,7 +291,7 @@ export class Ink {
     this.W = W;
     this.H = H;
     const dpr = this.S.dpr;
-    this.rt.setSize(Math.round(W * dpr * 1.5), Math.round(H * dpr * 1.5));
+    this.rt.setSize(Math.round(W * Math.min(dpr * 1.5, 2)), Math.round(H * Math.min(dpr * 1.5, 2)));
     this.stripMat.uniforms.uRes.value.set(W, H);
     this.show.mesh.material.uniforms.uRes.value.set(W, H);
     this.build(W, H);

@@ -9,7 +9,6 @@ import { sdfTexture } from './sdf.js';
  */
 const N = 5;
 const FRAG = /* glsl */ `
-precision highp float;
 varying vec2 vUv;
 uniform sampler2D uSDF;
 uniform vec2 uRes, uLight;
@@ -58,6 +57,7 @@ void main(){
 
   // soft shadow marched toward the light across the height field
   float sh = 1.;
+#ifndef LITE
   if (rel > .01){
     vec2 dir = normalize(Lp.xy - px);
     float dist2 = length(Lp.xy - px);
@@ -72,6 +72,10 @@ void main(){
     }
     sh = mix(1., sh, rel);
   }
+#else
+  // phones: one offset sample toward the light stands in for the marched shadow
+  sh = mix(1., smoothstep(-2.5, 0., h + 2. - heightRow(px + normalize(Lp.xy - px) * 4. * uZ, R)), rel);
+#endif
 
   vec3 bone = toLin(vec3(.925,.902,.855));
   vec3 mute = toLin(vec3(.36,.345,.32));
@@ -111,7 +115,7 @@ export class Relief {
     });
     this.mat = new THREE.ShaderMaterial({
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',
-      fragmentShader: FRAG,
+      fragmentShader: (S.touch ? '#define LITE' + String.fromCharCode(10) : '') + FRAG,
       transparent: true,
       depthTest: false,
       depthWrite: false,

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { quad, clamp, damp, ease, smooth, Spring, GLSL_COMMON, DISPLAY, SANS, wrap, seamUniform, setSeam } from './core.js';
+import { quad, clamp, damp, ease, smooth, Spring, releaseAfterUpload, GLSL_COMMON, DISPLAY, SANS, wrap, seamUniform, setSeam } from './core.js';
 
 /*
  * How I work: a dossier on a dark desk. Each sheet turns on its binding as you scroll,
@@ -205,14 +205,14 @@ export class Sheets {
     this.sheets = PAGES.map((p, i) => {
       const geo = new THREE.PlaneGeometry(PW, PH, SX, SY);
       geo.translate(PW / 2, 0, 0); // hinge on the left edge
-      const front = new THREE.CanvasTexture(pageCanvas(p, false, S.touch ? 0.62 : 1));
+      const front = releaseAfterUpload(new THREE.CanvasTexture(pageCanvas(p, false, S.touch ? 0.62 : 1)));
       front.colorSpace = THREE.SRGBColorSpace;
       front.anisotropy = lite ? 1 : 8;
       if (lite) {
         front.generateMipmaps = false;
         front.minFilter = THREE.LinearFilter;
       }
-      const back = new THREE.CanvasTexture(pageCanvas(p, true, S.touch ? 0.4 : 1));
+      const back = releaseAfterUpload(new THREE.CanvasTexture(pageCanvas(p, true, S.touch ? 0.4 : 1)));
       back.colorSpace = THREE.SRGBColorSpace;
       const g = new THREE.Group();
       if (lite) {
@@ -251,7 +251,7 @@ export class Sheets {
 
   resize() {
     const S = this.S;
-    this.rt.setSize(Math.round(S.w * S.dpr), Math.round(S.h * S.dpr));
+    this.rt.setSize(Math.round(S.w * S.rtDpr), Math.round(S.h * S.rtDpr));
     this.cam.aspect = S.w / S.h;
     this.cam.updateProjectionMatrix();
   }

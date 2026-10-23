@@ -348,7 +348,7 @@ export class Draft {
     c.height = H * k;
     this.numK = k;
     this.numTex?.dispose();
-    this.numTex = canvasTex(c, { srgb: false, mips: false });
+    this.numTex = canvasTex(c, { srgb: false, mips: false, keep: true });
     this.mat.uniforms.uNums.value = this.numTex;
     this.layers = [];
     for (let i = 0; i < 3; i++) this.layers[i] = this.shuffle(i);

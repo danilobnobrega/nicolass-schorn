@@ -127,7 +127,9 @@ export function createGL(canvas) {
     S.w = w;
     S.h = S.touch && sameW ? Math.max(h, S.h || 0) : h;
     S.mobile = S.w <= 820;
-    S.dpr = Math.min(window.devicePixelRatio || 1, S.touch ? 1 : 1.5);
+    S.dpr = Math.min(window.devicePixelRatio || 1, S.touch ? 2 : 1.5);
+    // scenes rendered through their own target stay lighter than the screen
+    S.rtDpr = Math.min(S.dpr, S.touch ? 1.25 : 1.5);
     renderer.setPixelRatio(S.dpr);
     // size the canvas in px too: on phones 100vh and innerHeight disagree
     renderer.setSize(S.w, S.h, true);
@@ -148,6 +150,25 @@ export function createGL(canvas) {
 
   S.touch = matchMedia('(hover: none), (pointer: coarse)').matches;
   S.fingerAt = -9;
+
+  // draw a view once into a single pixel: compiles its shaders and uploads its textures
+  // up front, so nothing stalls the GPU in the middle of a scroll
+  S.warm = (v) => {
+    try {
+      renderer.setScissorTest(true);
+      renderer.setViewport(0, 0, 1, 1);
+      renderer.setScissor(0, 0, 1, 1);
+      v.prerender?.(renderer, { left: 0, top: 0, width: 1, height: 1, bottom: 1 });
+      renderer.setRenderTarget(null);
+      renderer.setViewport(0, 0, 1, 1);
+      renderer.setScissor(0, 0, 1, 1);
+      v.render(renderer);
+    } catch (e) {
+      console.error(e);
+    }
+    renderer.setScissorTest(false);
+    renderer.setRenderTarget(null);
+  };
 
   S.add = (v) => {
     S.views.push(v);
@@ -276,8 +297,9 @@ export function loadTexture(url, srgb = true) {
   );
 }
 
-export function canvasTex(canvas, { srgb = true, mips = true } = {}) {
+export function canvasTex(canvas, { srgb = true, mips = true, keep = false } = {}) {
   const t = new THREE.CanvasTexture(canvas);
+  if (!keep) releaseAfterUpload(t);
   t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
   t.generateMipmaps = mips;
   t.minFilter = mips ? THREE.LinearMipmapLinearFilter : THREE.LinearFilter;
@@ -298,6 +320,18 @@ export function wrap(ctx, text, maxW) {
   }
   if (line) lines.push(line);
   return lines;
+}
+
+// once a canvas is on the GPU its bitmap is dead weight; iOS counts it against a tight limit
+export function releaseAfterUpload(t) {
+  t.onUpdate = () => {
+    const im = t.image;
+    if (im && 'width' in im && im.getContext) {
+      im.width = im.height = 0;
+    } else if (im && im.data) im.data = null;
+    t.onUpdate = null;
+  };
+  return t;
 }
 
 // keeps a view's uSeam uniform in step with its rectangle on screen

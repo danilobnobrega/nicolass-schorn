@@ -183,3 +183,5 @@ a:hover .swap > span + span, button:hover .swap > span + span { transform: trans
   .hdr__menu:hover .hdr__dots { transform: none; }
   .menu-open .hdr__dots { transform: rotate(45deg); }
 }
+
+.no-gl .row__title { color: var(--bone); }

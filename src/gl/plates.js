@@ -220,6 +220,8 @@ export class Plates {
     });
     PLATES.forEach((pl, i) => {
       const c = plateCanvas(pl);
+      const cw = c.width,
+        ch = c.height;
       const faceU = { value: null };
       waits.push(sdfTexture(c).then((t) => (faceU.value = t)));
       const x = i * GAP;
@@ -231,7 +233,7 @@ export class Plates {
         new THREE.ShaderMaterial({
           vertexShader: PLATE_VS,
           fragmentShader: PLATE_FS,
-          uniforms: { ...shared, uSDF: faceU, uTexRes: { value: new THREE.Vector2(c.width, c.height) }, uTexel: { value: 1 }, uFace: { value: 1 } },
+          uniforms: { ...shared, uSDF: faceU, uTexRes: { value: new THREE.Vector2(cw, ch) }, uTexel: { value: 1 }, uFace: { value: 1 } },
         }),
       );
       face.position.set(x, 0, STAND + 0.0012);
@@ -276,7 +278,7 @@ export class Plates {
 
   resize() {
     const S = this.S;
-    this.rt.setSize(Math.round(S.w * S.dpr), Math.round(S.h * S.dpr));
+    this.rt.setSize(Math.round(S.w * S.rtDpr), Math.round(S.h * S.rtDpr));
     this.cam.aspect = S.w / S.h;
     this.cam.updateProjectionMatrix();
   }

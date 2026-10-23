@@ -24,6 +24,7 @@ export function sdfTexture(canvas, { soften = 0 } = {}) {
   const px = canvas.getContext('2d').getImageData(0, 0, w, h).data;
   const alpha = new Uint8ClampedArray(w * h);
   for (let i = 0; i < w * h; i++) alpha[i] = px[i * 4 + 3];
+  canvas.width = canvas.height = 0;
   const id = ++seq;
   return new Promise((res) => {
     jobs.set(id, (out) => {
@@ -31,6 +32,10 @@ export function sdfTexture(canvas, { soften = 0 } = {}) {
       t.minFilter = THREE.LinearFilter;
       t.magFilter = THREE.LinearFilter;
       t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;
+      t.onUpdate = () => {
+        t.image.data = null;
+        t.onUpdate = null;
+      };
       t.needsUpdate = true;
       res(t);
     });

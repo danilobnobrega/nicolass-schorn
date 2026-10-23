@@ -225,7 +225,7 @@ export class Glass {
         uPhoto: { value: photo },
         uGeo: { value: geo },
         uRes: { value: new THREE.Vector2() },
-        uSdfRes: { value: new THREE.Vector2(canvas.width, canvas.height) },
+        uSdfRes: { value: new THREE.Vector2(this.maskW, this.maskH) },
         uLight: { value: new THREE.Vector2() },
         uCam: { value: new THREE.Vector3(0, 0, 4) },
         uRot: { value: new THREE.Matrix3() },

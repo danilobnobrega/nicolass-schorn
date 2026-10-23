@@ -1,6 +1,6 @@
 import './style.css';
 import Lenis from 'lenis';
-import { createGL, loadTexture, clamp, disposeDeep } from './gl/core.js';
+import { createGL, loadTexture, clamp } from './gl/core.js';
 import { Glass } from './gl/glass.js';
 // every scene in the one bundle: a phone never has to fetch a second script mid-deploy
 import { Draft } from './gl/draft.js';
@@ -185,7 +185,7 @@ async function makeGL() {
 // no WebGL right now (blocked for a while after a GPU reset): the page stays exactly as it
 // is and keeps asking; the moment a context is granted, the scenes come back where you are
 function noGL() {
-  root.classList.add('is-ready');
+  root.classList.add('is-ready', 'no-gl');
   setTimeout(() => lenis.start(), 300);
   let tries = 0;
   const again = async () => {
@@ -222,6 +222,8 @@ async function boot() {
 
 // a GPU reset on a phone: rebuild everything on a fresh canvas, at the current scroll
 function onLost() {
+  // while there is no context the titles drawn by WebGL fall back to the page's own type
+  root.classList.add('no-gl');
   window.__dbg('reconstruindo o WebGL');
   clearInterval(scenesTimer);
   for (const k of Object.keys(VIEWS)) delete VIEWS[k];
@@ -239,6 +241,7 @@ function onLost() {
 }
 
 async function startGL(again = false) {
+  root.classList.remove('no-gl');
   window.__S = S;
   S.onLost = onLost;
   describeGL();
@@ -278,36 +281,32 @@ async function startGL(again = false) {
       sc.state = 'failed';
     }
   };
-  const drop = (sc) => {
+  // every scene is built and warmed while the intro plays, one per frame gap, so a scroll
+  // never waits for a build, a shader compile or a texture upload
+  for (const sc of SCENES) {
+    if (!S) return;
+    await build(sc);
     const v = VIEWS[sc.key];
-    S.views = S.views.filter((x) => x !== v);
-    disposeDeep(v);
-    delete VIEWS[sc.key];
-    sc.state = 'idle';
-    window.__dbg?.('- ' + sc.key);
-  };
-  if (!S.touch) {
-    for (const sc of SCENES) if (S) await build(sc);
-  } else {
-    // one scene at a time, in the order they are needed
-    let busy = false;
-    scenesTimer = setInterval(async () => {
+    if (v) {
+      await new Promise((r) => setTimeout(r, 0));
+      await (v.ready || Promise.resolve());
+      if (v.hidden) await new Promise((r) => { const t = setInterval(() => !v.hidden && (clearInterval(t), r()), 50); setTimeout(() => (clearInterval(t), r()), 4000); });
+      if (S) S.warm(v);
+      window.__dbg?.('aquecido ' + sc.key);
+    }
+    await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 30)));
+  }
+  // heartbeat: what is on screen and how the frames are doing
+  if (S.touch) {
+    let worst = 0;
+    const tick = () => (worst = Math.max(worst, S?.dt || 0));
+    scenesTimer = setInterval(() => {
       if (!S) return;
-      if (busy) return;
-      const h = innerHeight;
-      for (const sc of SCENES) {
-        const r = sc.el.closest('section').getBoundingClientRect();
-        const near = r.bottom > -1.2 * h && r.top < 2.2 * h;
-        const far = r.bottom < -2.5 * h || r.top > 3.5 * h;
-        if (near && sc.state === 'idle') {
-          busy = true;
-          await build(sc);
-          busy = false;
-          return;
-        }
-        if (far && sc.state === 'live') drop(sc);
-      }
-    }, 250);
+      const on = S.views.filter((v) => v.rect && v.rect.bottom > 0 && v.rect.top < S.h).map((v) => v.key || 'gl');
+      window.__dbg?.(`y ${Math.round(scrollY)} · ${on.join('+')} · pior quadro ${Math.round(worst * 1000)}ms`);
+      worst = 0;
+    }, 2000);
+    S.onFrame = tick;
   }
 }
 
@@ -321,6 +320,7 @@ function frame(now) {
   if (S && !S.lost) {
     S.step(dt);
     S.render();
+    S.onFrame?.();
   }
   // the header reads dark while the wall is in daylight behind it
   const w = VIEWS.wall;
