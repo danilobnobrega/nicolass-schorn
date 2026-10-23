@@ -23,7 +23,7 @@ void main(){
   vec2 tx = 1. / uRes;
   float blur = (texture2D(uPrev, vUv + vec2(tx.x, 0.)).r + texture2D(uPrev, vUv - vec2(tx.x, 0.)).r
               + texture2D(uPrev, vUv + vec2(0., tx.y)).r + texture2D(uPrev, vUv - vec2(0., tx.y)).r) * .25;
-  float v = mix(prev, blur, .3) * exp(-uDt * .55);
+  float v = max(mix(prev, blur, .3) * exp(-uDt * .55) - uDt * .02, 0.);
   // the brush: stretched along the movement, a small presence even at rest
   vec2 d = px - uMouse;
   float sp = length(uVel);
@@ -166,7 +166,7 @@ export class Draft {
       },
     });
     this.q = quad(this.mat);
-    const tOpt = { type: THREE.HalfFloatType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false };
+    const tOpt = { type: S.rtType, minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, depthBuffer: false };
     this.trail = [new THREE.WebGLRenderTarget(4, 4, tOpt), new THREE.WebGLRenderTarget(4, 4, tOpt)];
     this.trailMat = new THREE.ShaderMaterial({
       vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',

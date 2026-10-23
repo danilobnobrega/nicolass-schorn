@@ -259,7 +259,7 @@ export class Plates {
     wall.position.set(GAP * 1.5, 0, 0);
     this.scene.add(wall);
 
-    this.rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
+    this.rt = new THREE.WebGLRenderTarget(4, 4, { type: S.rtType, samples: S.rtSamples });
     this.post = quad(
       new THREE.ShaderMaterial({
         vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',

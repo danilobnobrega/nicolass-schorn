@@ -219,7 +219,7 @@ export class Ink {
         },
       }),
     );
-    this.rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType });
+    this.rt = new THREE.WebGLRenderTarget(4, 4, { type: S.rtType });
     this.show.mesh.material.uniforms.uInk.value = this.rt.texture;
     this.resize();
   }

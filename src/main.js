@@ -83,7 +83,30 @@ function stepPeek(dt) {
 }
 
 /* ───────────── webgl ───────────── */
+/* ───────────── ?debug: what this device's GPU can do, and any errors, on screen ───────────── */
+if (location.search.includes('debug')) {
+  const box = document.createElement('pre');
+  box.style.cssText = 'position:fixed;z-index:99;left:8px;right:8px;bottom:8px;max-height:45vh;overflow:auto;margin:0;padding:10px;font:11px/1.4 monospace;color:#9f9;background:rgba(0,0,0,.85);white-space:pre-wrap;pointer-events:none';
+  document.body.appendChild(box);
+  const log = (s) => (box.textContent += s + String.fromCharCode(10));
+  addEventListener('error', (e) => log('ERR ' + e.message + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno));
+  addEventListener('unhandledrejection', (e) => log('REJ ' + (e.reason?.message || e.reason)));
+  const ce = console.error.bind(console);
+  console.error = (...a) => (log('CE ' + a.map(String).join(' ').slice(0, 300)), ce(...a));
+  const cw = console.warn.bind(console);
+  console.warn = (...a) => (log('CW ' + a.map(String).join(' ').slice(0, 300)), cw(...a));
+  window.__dbg = log;
+}
+
 const S = createGL($('#gl'));
+if (window.__dbg) {
+  const gl = S.renderer.getContext();
+  const ri = gl.getExtension('WEBGL_debug_renderer_info');
+  window.__dbg(`gpu ${ri ? gl.getParameter(ri.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)}`);
+  window.__dbg(`webgl2 ${S.renderer.capabilities.isWebGL2} · rt ${S.rtType === 1016 ? 'half' : 'byte'} · floatLinear ${!!gl.getExtension('OES_texture_float_linear')} · maxTex ${gl.getParameter(gl.MAX_TEXTURE_SIZE)} · precision ${S.renderer.capabilities.precision}`);
+  window.__dbg(`screen ${innerWidth}x${innerHeight} dpr ${devicePixelRatio} · canvas letterSpacing ${'letterSpacing' in CanvasRenderingContext2D.prototype}`);
+  setInterval(() => window.__dbg(`views ${S.views.map((v) => v.constructor.name + (v.hidden ? '(h)' : '')).join(' ')} · fps ${Math.round(1 / Math.max(S.dt, 1e-3))}`), 3000);
+}
 window.__S = S;
 addEventListener('resize', () => S.resize());
 

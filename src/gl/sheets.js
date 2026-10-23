@@ -18,6 +18,7 @@ const PW = 1.0,
   SY = 20;
 
 function pageCanvas(p, back = false) {
+  // drawn at 1100px wide; phones get a smaller copy of the same layout
   const W = 1100,
     H = Math.round((W * PH) / PW);
   const c = document.createElement('canvas');
@@ -85,6 +86,15 @@ function pageCanvas(p, back = false) {
   return c;
 }
 
+function shrink(c, k) {
+  if (k >= 1) return c;
+  const o = document.createElement('canvas');
+  o.width = Math.round(c.width * k);
+  o.height = Math.round(c.height * k);
+  o.getContext('2d').drawImage(c, 0, 0, o.width, o.height);
+  return o;
+}
+
 const POST = /* glsl */ `
 precision highp float;
 varying vec2 vUv;
@@ -148,10 +158,10 @@ export class Sheets {
     this.sheets = PAGES.map((p, i) => {
       const geo = new THREE.PlaneGeometry(PW, PH, SX, SY);
       geo.translate(PW / 2, 0, 0); // hinge on the left edge
-      const front = new THREE.CanvasTexture(pageCanvas(p));
+      const front = new THREE.CanvasTexture(shrink(pageCanvas(p), S.touch ? 0.7 : 1));
       front.colorSpace = THREE.SRGBColorSpace;
       front.anisotropy = 8;
-      const back = new THREE.CanvasTexture(pageCanvas(p, true));
+      const back = new THREE.CanvasTexture(shrink(pageCanvas(p, true), S.touch ? 0.5 : 1));
       back.colorSpace = THREE.SRGBColorSpace;
       const mF = new THREE.MeshStandardMaterial({ map: front, roughness: 0.92, side: THREE.FrontSide });
       const mB = new THREE.MeshStandardMaterial({ map: back, roughness: 0.95, side: THREE.BackSide });
@@ -169,7 +179,7 @@ export class Sheets {
       return { g, geo, base, t: -1, lift: 0, ls: new Spring(0, 60, 9) };
     });
 
-    this.rt = new THREE.WebGLRenderTarget(4, 4, { type: THREE.HalfFloatType, samples: 4 });
+    this.rt = new THREE.WebGLRenderTarget(4, 4, { type: S.rtType, samples: S.rtSamples });
     this.post = quad(
       new THREE.ShaderMaterial({
         vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0., 1.); }',

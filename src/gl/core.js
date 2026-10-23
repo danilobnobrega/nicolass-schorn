@@ -1,5 +1,44 @@
 import * as THREE from 'three';
 
+// canvas letter-spacing is missing in older Safari: emulate it, glyph by glyph
+(() => {
+  const P = CanvasRenderingContext2D.prototype;
+  if ('letterSpacing' in P) return;
+  const ls = new WeakMap();
+  Object.defineProperty(P, 'letterSpacing', {
+    get() {
+      return `${ls.get(this) || 0}px`;
+    },
+    set(v) {
+      ls.set(this, parseFloat(v) || 0);
+    },
+  });
+  const measure = P.measureText,
+    fill = P.fillText;
+  P.measureText = function (t) {
+    const m = measure.call(this, t);
+    const sp = ls.get(this) || 0;
+    if (!sp) return m;
+    const o = {};
+    for (const k in m) o[k] = m[k];
+    o.width = m.width + sp * [...t].length;
+    return o;
+  };
+  P.fillText = function (t, x, y) {
+    const sp = ls.get(this) || 0;
+    if (!sp) return fill.call(this, t, x, y);
+    const w = this.measureText(t).width;
+    const al = this.textAlign;
+    let cx = al === 'center' ? x - w / 2 : al === 'right' || al === 'end' ? x - w : x;
+    this.textAlign = 'left';
+    for (const ch of t) {
+      fill.call(this, ch, cx, y);
+      cx += measure.call(this, ch).width + sp;
+    }
+    this.textAlign = al;
+  };
+})();
+
 export const GRAPHITE = '#12110f';
 export const BONE = '#ece6da';
 export const BRASS = '#b48d55';
@@ -57,8 +96,13 @@ export function createGL(canvas) {
   renderer.autoClear = false;
   renderer.toneMapping = THREE.NoToneMapping;
 
+  // render targets: half float where the GPU can draw into it, bytes otherwise
+  const gl = renderer.getContext();
+  const halfOK = !!(gl.getExtension('EXT_color_buffer_float') || gl.getExtension('EXT_color_buffer_half_float'));
   const S = {
     renderer,
+    rtType: halfOK && !location.search.includes('lowgpu') ? THREE.HalfFloatType : THREE.UnsignedByteType,
+    rtSamples: matchMedia('(hover: none), (pointer: coarse)').matches ? 0 : 4,
     w: 1,
     h: 1,
     dpr: 1,

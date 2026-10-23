@@ -25,7 +25,7 @@ export function sdfTexture(canvas, { soften = 0 } = {}) {
   const id = ++seq;
   return new Promise((res) => {
     jobs.set(id, (out) => {
-      const t = new THREE.DataTexture(out, w, h, THREE.RedFormat, THREE.FloatType);
+      const t = new THREE.DataTexture(out, w, h, THREE.RedFormat, THREE.HalfFloatType);
       t.minFilter = THREE.LinearFilter;
       t.magFilter = THREE.LinearFilter;
       t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping;

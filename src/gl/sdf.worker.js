@@ -83,5 +83,27 @@ self.onmessage = (e) => {
   // flip rows so the texture's v=0 is the bottom of the canvas
   const out = new Float32Array(w * h);
   for (let y = 0; y < h; y++) out.set(d.subarray((h - 1 - y) * w, (h - y) * w), y * w);
-  self.postMessage({ id, out }, [out.buffer]);
+  // half floats: filterable on every WebGL2 GPU, unlike 32-bit floats on phones
+  const half = new Uint16Array(w * h);
+  const f32 = new Float32Array(1),
+    u32 = new Uint32Array(f32.buffer);
+  for (let i = 0; i < out.length; i++) {
+    f32[0] = Math.max(-65000, Math.min(65000, out[i]));
+    const x = u32[0];
+    const sign = (x >>> 16) & 0x8000;
+    let e = ((x >>> 23) & 0xff) - 112;
+    let m = x & 0x7fffff;
+    if (e <= 0) half[i] = sign; // too small: zero
+    else if (e >= 31) half[i] = sign | 0x7bff;
+    else {
+      // round to nearest
+      m += 0x1000;
+      if (m & 0x800000) {
+        m = 0;
+        e++;
+      }
+      half[i] = sign | (e << 10) | (m >>> 13);
+    }
+  }
+  self.postMessage({ id, out: half }, [half.buffer]);
 };
