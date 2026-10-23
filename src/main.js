@@ -84,18 +84,44 @@ function stepPeek(dt) {
 
 /* ───────────── webgl ───────────── */
 /* ───────────── ?debug: what this device's GPU can do, and any errors, on screen ───────────── */
-if (location.search.includes('debug')) {
-  const box = document.createElement('pre');
-  box.style.cssText = 'position:fixed;z-index:99;left:8px;right:8px;bottom:8px;max-height:45vh;overflow:auto;margin:0;padding:10px;font:11px/1.4 monospace;color:#9f9;background:rgba(0,0,0,.85);white-space:pre-wrap;pointer-events:none';
-  document.body.appendChild(box);
-  const log = (s) => (box.textContent += s + String.fromCharCode(10));
-  addEventListener('error', (e) => log('ERR ' + e.message + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno));
-  addEventListener('unhandledrejection', (e) => log('REJ ' + (e.reason?.message || e.reason)));
+{
+  // diagnostics: always recorded, shown with ?debug or by itself when something goes wrong
+  const lines = [];
+  let box = null;
+  const show = (why) => {
+    if (!box) {
+      box = document.createElement('pre');
+      box.style.cssText = 'position:fixed;z-index:99;left:8px;right:8px;bottom:8px;max-height:55vh;overflow:auto;margin:0;padding:10px;font:11px/1.4 monospace;color:#9f9;background:rgba(0,0,0,.88);white-space:pre-wrap;pointer-events:none';
+      document.body.appendChild(box);
+    }
+    if (why) lines.unshift('>> ' + why);
+    box.textContent = lines.join(String.fromCharCode(10));
+  };
+  const t0 = performance.now();
+  const log = (s) => {
+    lines.push(((performance.now() - t0) / 1000).toFixed(1) + 's ' + s);
+    if (box) show();
+  };
+  window.__dbg = log;
+  window.__trouble = (why) => show(why + ' (tire um print disto)');
+  if (location.search.includes('debug')) show();
+  addEventListener('error', (e) => (log('ERR ' + e.message + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno), window.__trouble('erro')));
+  addEventListener('unhandledrejection', (e) => (log('REJ ' + (e.reason?.message || e.reason)), window.__trouble('erro')));
   const ce = console.error.bind(console);
   console.error = (...a) => (log('CE ' + a.map(String).join(' ').slice(0, 300)), ce(...a));
-  const cw = console.warn.bind(console);
-  console.warn = (...a) => (log('CW ' + a.map(String).join(' ').slice(0, 300)), cw(...a));
-  window.__dbg = log;
+  // a load that never reached "healthy" means the page was killed (usually memory)
+  try {
+    const prev = +(sessionStorage.getItem('nic-boot') || 0);
+    if (prev) {
+      const n = +(sessionStorage.getItem('nic-crash') || 0) + 1;
+      sessionStorage.setItem('nic-crash', n);
+      log('a página anterior caiu durante o carregamento (' + n + 'x)');
+      setTimeout(() => window.__trouble('página caiu antes'), 1500);
+    }
+    sessionStorage.setItem('nic-boot', Date.now());
+    setTimeout(() => sessionStorage.removeItem('nic-boot'), 15000);
+  } catch (e) {}
+  log(navigator.userAgent);
 }
 
 const S = createGL($('#gl'));
@@ -105,20 +131,24 @@ if (window.__dbg) {
   window.__dbg(`gpu ${ri ? gl.getParameter(ri.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER)}`);
   window.__dbg(`webgl2 ${S.renderer.capabilities.isWebGL2} · rt ${S.rtType === 1016 ? 'half' : 'byte'} · floatLinear ${!!gl.getExtension('OES_texture_float_linear')} · maxTex ${gl.getParameter(gl.MAX_TEXTURE_SIZE)} · precision ${S.renderer.capabilities.precision}`);
   window.__dbg(`screen ${innerWidth}x${innerHeight} dpr ${devicePixelRatio} · canvas letterSpacing ${'letterSpacing' in CanvasRenderingContext2D.prototype}`);
-  setInterval(() => window.__dbg(`views ${S.views.map((v) => v.constructor.name + (v.hidden ? '(h)' : '')).join(' ')} · fps ${Math.round(1 / Math.max(S.dt, 1e-3))}`), 3000);
+  if (location.search.includes('debug')) setInterval(() => window.__dbg(`views ${S.views.map((v) => v.constructor.name + (v.hidden ? '(h)' : '')).join(' ')} · fps ${Math.round(1 / Math.max(S.dt, 1e-3))}`), 3000);
 }
 window.__S = S;
 addEventListener('resize', () => S.resize());
 
 async function boot() {
   setTimeout(() => root.classList.add('is-ready'), 8000);
+  window.__dbg('boot');
+  setTimeout(() => !VIEWS.glass?.started && window.__trouble('abertura não iniciou em 7s'), 7000);
   await document.fonts.load('300px "Gloock"');
   await document.fonts.load('400 40px "Inter Tight Variable"');
+  window.__dbg('fontes ok');
   const [photo, geo] = await Promise.all([loadTexture('/nicolas-cut.png'), loadTexture('/nicolas-geo.png', false)]);
+  window.__dbg('fotos ok');
 
   VIEWS.glass = S.add(new Glass(S, $('[data-view="glass"]'), { photo, geo }));
   // never leave the page blank: if the hero is slow, open anyway
-  await Promise.race([VIEWS.glass.ready, new Promise((r) => setTimeout(r, 5000))]);
+  await Promise.race([VIEWS.glass.ready.then(() => window.__dbg('vidro pronto')), new Promise((r) => setTimeout(r, 5000))]);
   root.classList.add('is-ready');
   VIEWS.glass.start();
   setTimeout(() => lenis.start(), 1400);

@@ -217,9 +217,11 @@ export function createGL(canvas) {
     S.lost = true;
     document.documentElement.classList.add('gl-lost');
     window.__dbg?.('WEBGL CONTEXT LOST');
+    window.__trouble?.('o WebGL caiu');
   });
-  canvas.addEventListener('webglcontextrestored', () => location.reload());
+  canvas.addEventListener('webglcontextrestored', () => window.__dbg?.('webgl voltou'));
   renderer.debug.onShaderError = (gl, prog, vs, fs) => {
+    window.__trouble?.('shader não compilou');
     window.__dbg?.('SHADER ' + (gl.getShaderInfoLog(fs) || gl.getShaderInfoLog(vs) || gl.getProgramInfoLog(prog) || '').slice(0, 400));
   };
 
