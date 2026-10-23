@@ -148,7 +148,7 @@ a:hover .swap > span + span, button:hover .swap > span + span { transform: trans
   .about__draft { margin: -4lvh -20px -8lvh; height: 70lvh; }
   .about__cols { grid-template-columns: 1fr; gap: 22px; margin-top: 8lvh; font-size: 16px; }
 
-  .plates { height: 420lvh; }
+  .plates { height: 300lvh; }
   .plates__sticky, .method__sticky, .wall__sticky { height: 100lvh; }
   .plates__eyebrow { top: 12lvh; left: 20px; }
 

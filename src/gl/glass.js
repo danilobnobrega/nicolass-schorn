@@ -275,7 +275,7 @@ export class Glass {
     const tw = 2 * aspect * (this.stacked ? 0.9 : 0.94);
     const th = (tw * this.maskH) / this.maskW;
     u.uTextSize.value.set(tw, th);
-    u.uTextCenter.value.set(0, this.stacked ? -0.98 + th / 2 + 0.17 : -0.6);
+    u.uTextCenter.value.set(0, this.stacked ? -0.98 + th / 2 + 0.11 : -0.6);
     u.uTexel.value = tw / this.maskW;
     // lens profile and thickness follow the size of the letters
     this.gk = Math.min(1, (tw * 2260) / (this.maskW * 3.0));
@@ -286,7 +286,7 @@ export class Glass {
     const k = (D + zb) / D;
     const ph = 1.78 * k;
     // on a tall screen the portrait sits higher, so the stacked name clears his chin
-    u.uPhotoRect.value.set(this.stacked ? 0 : 0.04 * k, -1 * k + ph / 2 - 0.02 + (this.stacked ? 0.19 * k : 0), ph, ph);
+    u.uPhotoRect.value.set(this.stacked ? 0 : 0.04 * k, -1 * k + ph / 2 - 0.02 + (this.stacked ? 0.13 * k : 0), ph, ph);
   }
 
   start(skipIntro = false) {

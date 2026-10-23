@@ -35,6 +35,8 @@ function toothTile() {
 }
 
 // laid out on an 1100px-wide page; k scales the bitmap (phones draw it small to begin with)
+// big: the phone layout, with type sized for a page that is only ~300px wide on screen
+const BIG = matchMedia('(hover: none), (pointer: coarse)').matches;
 function pageCanvas(p, back = false, k = 1) {
   const W = 1100,
     H = Math.round((W * PH) / PW);
@@ -65,14 +67,14 @@ function pageCanvas(p, back = false, k = 1) {
   const M = 96;
   if (p.cover) {
     g.fillStyle = ink;
-    g.font = `600 26px ${SANS}`;
+    g.font = `600 ${BIG ? 34 : 26}px ${SANS}`;
     g.letterSpacing = '6px';
     g.fillText(p.sub, M, M + 22);
     g.fillRect(M, M + 52, W - M * 2, 2);
-    g.font = `200px ${DISPLAY}`;
+    g.font = `${BIG ? 230 : 200}px ${DISPLAY}`;
     g.letterSpacing = '-6px';
     const lines = wrap(g, p.title, W - M * 2);
-    lines.forEach((l, i) => g.fillText(l, M - 6, H - M - 60 - (lines.length - 1 - i) * 196));
+    lines.forEach((l, i) => g.fillText(l, M - 6, H - M - 60 - (lines.length - 1 - i) * (BIG ? 224 : 196)));
     g.fillStyle = brass;
     g.fillRect(M, H - M - 10, 120, 6);
     return c;
@@ -82,19 +84,20 @@ function pageCanvas(p, back = false, k = 1) {
   g.letterSpacing = '-16px';
   g.fillText(p.n, M - 20, M + 350);
   g.fillStyle = ink;
-  g.font = `128px ${DISPLAY}`;
+  g.font = `${BIG ? 150 : 128}px ${DISPLAY}`;
   g.letterSpacing = '-3px';
   const tl = wrap(g, p.title, W - M * 2);
-  const ty = H * 0.53;
-  tl.forEach((l, i) => g.fillText(l, M, ty + i * 128));
-  g.font = `500 46px ${SANS}`;
+  const tlh = BIG ? 148 : 128;
+  const ty = H * (BIG ? 0.47 : 0.53);
+  tl.forEach((l, i) => g.fillText(l, M, ty + i * tlh));
+  g.font = `500 ${BIG ? 62 : 46}px ${SANS}`;
   g.letterSpacing = '0px';
   g.fillStyle = '#26231f';
   const bl = wrap(g, p.text, W - M * 2 - 40);
-  bl.forEach((l, i) => g.fillText(l, M, ty + tl.length * 128 + 50 + i * 66));
+  bl.forEach((l, i) => g.fillText(l, M, ty + tl.length * tlh + 60 + i * (BIG ? 84 : 66)));
   g.fillStyle = ink;
   g.fillRect(M, H - M, W - M * 2, 1.5);
-  g.font = `600 24px ${SANS}`;
+  g.font = `600 ${BIG ? 30 : 24}px ${SANS}`;
   g.letterSpacing = '5px';
   g.fillText('NÍCOLAS T. SCHORN', M, H - M + 40);
   g.textAlign = 'right';
@@ -121,10 +124,11 @@ void main(){
   vec3 alb = gl_FrontFacing ? texture2D(uMapF, vUv * uRepeat).rgb : texture2D(uMapB, vUv * uRepeat).rgb;
   vec3 L = uLamp - vW; float d = length(L); L /= d;
   float cosA = dot(-L, normalize(uTarget - uLamp));
-  float cone = smoothstep(cos(.75), cos(.75 * .35), cosA);
+  float cone = smoothstep(cos(1.), cos(.4), cosA);
   float ndl = max(dot(N, L), 0.);
   vec3 lamp = vec3(1., .906, .784) * uI * cone * ndl / pow(d, 1.6) / 3.14159;
-  vec3 hemi = mix(vec3(.10,.09,.07), vec3(.54,.52,.47), N.y * .5 + .5) * .22;
+  // a generous fill so the page always reads, whatever the lamp is doing
+  vec3 hemi = mix(vec3(.10,.09,.07), vec3(.54,.52,.47), N.y * .5 + .5) * .55;
   gl_FragColor = vec4(alb * (lamp + hemi), 1.);
 }
 `;
