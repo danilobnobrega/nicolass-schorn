@@ -285,7 +285,8 @@ export class Glass {
       D = 4;
     const k = (D + zb) / D;
     const ph = 1.78 * k;
-    u.uPhotoRect.value.set(this.stacked ? 0 : 0.04 * k, -1 * k + ph / 2 - 0.02, ph, ph);
+    // on a tall screen the portrait sits higher, so the stacked name clears his chin
+    u.uPhotoRect.value.set(this.stacked ? 0 : 0.04 * k, -1 * k + ph / 2 - 0.02 + (this.stacked ? 0.19 * k : 0), ph, ph);
   }
 
   start(skipIntro = false) {

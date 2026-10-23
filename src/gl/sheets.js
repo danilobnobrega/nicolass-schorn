@@ -87,9 +87,9 @@ function pageCanvas(p, back = false, k = 1) {
   const tl = wrap(g, p.title, W - M * 2);
   const ty = H * 0.53;
   tl.forEach((l, i) => g.fillText(l, M, ty + i * 128));
-  g.font = `400 46px ${SANS}`;
+  g.font = `500 46px ${SANS}`;
   g.letterSpacing = '0px';
-  g.fillStyle = '#34302b';
+  g.fillStyle = '#26231f';
   const bl = wrap(g, p.text, W - M * 2 - 40);
   bl.forEach((l, i) => g.fillText(l, M, ty + tl.length * 128 + 50 + i * 66));
   g.fillStyle = ink;
@@ -154,7 +154,9 @@ export class Sheets {
     this.mx = 0;
     this.my = 0;
     const scene = (this.scene = new THREE.Scene());
-    this.cam = new THREE.PerspectiveCamera(28, 1, 0.1, 50);
+    this.cam = new THREE.PerspectiveCamera(28, 1, 0.5, 20);
+    // stacked sheets sit far enough apart that their surfaces never fight in depth
+    this.gap = S.touch ? 0.007 : 0.0028;
 
     // desk
     const dc = document.createElement('canvas');
@@ -205,13 +207,9 @@ export class Sheets {
     this.sheets = PAGES.map((p, i) => {
       const geo = new THREE.PlaneGeometry(PW, PH, SX, SY);
       geo.translate(PW / 2, 0, 0); // hinge on the left edge
-      const front = releaseAfterUpload(new THREE.CanvasTexture(pageCanvas(p, false, S.touch ? 0.62 : 1)));
+      const front = releaseAfterUpload(new THREE.CanvasTexture(pageCanvas(p, false, S.touch ? 0.93 : 1)));
       front.colorSpace = THREE.SRGBColorSpace;
-      front.anisotropy = lite ? 1 : 8;
-      if (lite) {
-        front.generateMipmaps = false;
-        front.minFilter = THREE.LinearFilter;
-      }
+      front.anisotropy = lite ? 4 : 8;
       const back = releaseAfterUpload(new THREE.CanvasTexture(pageCanvas(p, true, S.touch ? 0.4 : 1)));
       back.colorSpace = THREE.SRGBColorSpace;
       const g = new THREE.Group();
@@ -228,7 +226,7 @@ export class Sheets {
       }
       // flat on the desk, stacked: the cover on top
       g.rotation.x = -Math.PI / 2;
-      g.position.set(0, 0.002 + (PAGES.length - i) * 0.0028, 0);
+      g.position.set(0, 0.002 + (PAGES.length - i) * this.gap, 0);
       scene.add(g);
       const base = geo.attributes.position.array.slice();
       return { g, geo, base, t: -1, lift: 0, ls: new Spring(0, 60, 9) };
@@ -328,7 +326,7 @@ export class Sheets {
       const lift = clamp(sh.ls.step(S.dt), 0, 1.2);
       this.bend(sh, t, lift);
       const turned = t > 0.5;
-      sh.g.position.y = 0.002 + (turned ? i : PAGES.length - i) * 0.0028 + Math.sin(Math.PI * t) * 0.01;
+      sh.g.position.y = 0.002 + (turned ? i : PAGES.length - i) * this.gap + Math.sin(Math.PI * t) * 0.01;
     });
 
     // the lamp hangs where the cursor points, above the desk
