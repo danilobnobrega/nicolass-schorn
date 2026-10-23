@@ -103,7 +103,8 @@ function stepPeek(dt) {
     if (box) show();
   };
   window.__dbg = log;
-  window.__trouble = (why) => show(why + ' (tire um print disto)');
+  // the panel only shows with ?debug; the live site reports to the project's logs instead
+  window.__trouble = (why) => (lines.unshift('>> ' + why), location.search.includes('debug') && show());
   if (location.search.includes('debug')) show();
   addEventListener('error', (e) => (log('ERR ' + e.message + ' @' + (e.filename || '').split('/').pop() + ':' + e.lineno), window.__trouble('erro')));
   addEventListener('unhandledrejection', (e) => (log('REJ ' + (e.reason?.message || e.reason)), window.__trouble('erro')));

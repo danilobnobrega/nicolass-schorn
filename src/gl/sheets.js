@@ -139,13 +139,17 @@ export class Sheets {
     dt.colorSpace = THREE.SRGBColorSpace;
     dt.wrapS = dt.wrapT = THREE.RepeatWrapping;
     dt.repeat.set(10, 10);
-    const desk = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), new THREE.MeshStandardMaterial({ map: dt, roughness: 0.8, metalness: 0 }));
+    // phones get the same dossier with simple diffuse light and no shadow map: the full
+    // version made the GPU of an iPhone drop the context
+    const lite = (this.lite = S.touch);
+    const Mat = lite ? THREE.MeshLambertMaterial : THREE.MeshStandardMaterial;
+    const desk = new THREE.Mesh(new THREE.PlaneGeometry(16, 16), new Mat(lite ? { map: dt } : { map: dt, roughness: 0.8, metalness: 0 }));
     desk.rotation.x = -Math.PI / 2;
     desk.receiveShadow = true;
     scene.add(desk);
 
     this.lamp = new THREE.SpotLight(0xffe7c8, 60, 12, 0.75, 0.65, 1.6);
-    this.lamp.castShadow = true;
+    this.lamp.castShadow = !lite;
     this.lamp.shadow.mapSize.setScalar(S.touch ? 1024 : 2048);
     this.lamp.shadow.bias = -0.0004;
     this.lamp.shadow.normalBias = 0.01;
@@ -160,16 +164,20 @@ export class Sheets {
       geo.translate(PW / 2, 0, 0); // hinge on the left edge
       const front = new THREE.CanvasTexture(shrink(pageCanvas(p), S.touch ? 0.7 : 1));
       front.colorSpace = THREE.SRGBColorSpace;
-      front.anisotropy = 8;
+      front.anisotropy = lite ? 1 : 8;
+      if (lite) {
+        front.generateMipmaps = false;
+        front.minFilter = THREE.LinearFilter;
+      }
       const back = new THREE.CanvasTexture(shrink(pageCanvas(p, true), S.touch ? 0.5 : 1));
       back.colorSpace = THREE.SRGBColorSpace;
-      const mF = new THREE.MeshStandardMaterial({ map: front, roughness: 0.92, side: THREE.FrontSide });
-      const mB = new THREE.MeshStandardMaterial({ map: back, roughness: 0.95, side: THREE.BackSide });
+      const mF = new Mat(lite ? { map: front, side: THREE.FrontSide } : { map: front, roughness: 0.92, side: THREE.FrontSide });
+      const mB = new Mat(lite ? { map: back, side: THREE.BackSide } : { map: back, roughness: 0.95, side: THREE.BackSide });
       const g = new THREE.Group();
       const a = new THREE.Mesh(geo, mF);
       const b = new THREE.Mesh(geo, mB);
-      a.castShadow = b.castShadow = true;
-      a.receiveShadow = b.receiveShadow = true;
+      a.castShadow = b.castShadow = !lite;
+      a.receiveShadow = b.receiveShadow = !lite;
       g.add(a, b);
       // flat on the desk, stacked: the cover on top
       g.rotation.x = -Math.PI / 2;
@@ -290,7 +298,7 @@ export class Sheets {
   }
 
   prerender(renderer) {
-    renderer.shadowMap.enabled = true;
+    renderer.shadowMap.enabled = !this.lite;
     renderer.shadowMap.type = THREE.PCFShadowMap;
     renderer.setRenderTarget(this.rt);
     renderer.setClearColor(0x000000, 1);
