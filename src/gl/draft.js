@@ -66,8 +66,13 @@ void main(){
   // the lens is the cursor's trail, with an edge that keeps changing shape
   float tr = texture2D(uTrail, vUv).r;
   float wob = fbm(px * .018 + vec2(uTime * .25, -uTime * .18)) - .5;
-  float lens = smoothstep(.18, .42, tr + wob * .32);
-  float rim = smoothstep(.12, .3, tr + wob * .32) - lens;   // the fringe where it is being redrawn
+  // the drawing has no edge: it thins out into the page well before the canvas ends,
+  // along a border that wanders instead of a straight line
+  float y01 = px.y / uRes.y;
+  float ew = (fbm(px * .006 + uTime * .03) - .5) * .12;
+  float em = smoothstep(.0, .26, y01 + ew) * smoothstep(1., .74, y01 - ew) * smoothstep(.0, .1, x01 + ew * .5) * smoothstep(1., .9, x01 - ew * .5);
+  float lens = smoothstep(.18, .42, tr + wob * .32) * em;
+  float rim = (smoothstep(.12, .3, tr + wob * .32) - smoothstep(.18, .42, tr + wob * .32)) * em;   // the fringe where it is being redrawn
   float tl = mix(t, min(t, .16), lens);
 
   vec3 bone = vec3(.925,.902,.855);
@@ -79,10 +84,9 @@ void main(){
   vec2 g = abs(fract(px / 24.) - .5) * 24.;
   float lineV = 1. - smoothstep(0., 1., g.x), lineH = 1. - smoothstep(0., 1., g.y);
   float hv = hash12(vec2(cell.x, 1.)), hh = hash12(vec2(2., cell.y));
-  float y01 = px.y / uRes.y;
   float inV = step(y01, uP * 2.6 - hv * .9) * step(uP * 2.6 - 1.4 - hv * .2, y01);
   float inH = step(x01, uP * 2.6 - hh * .9) * step(uP * 2.6 - 1.4 - hh * .2, x01);
-  float grid = max(lineV * inV, lineH * inH) * .055;
+  float grid = max(lineV * inV, lineH * inH) * .055 * em;
   // inside the lens the grid is alive: it slides, and its dashes run
   vec2 gp = px + vec2(uTime * 9., uTime * -6.);
   vec2 g2 = abs(fract(gp / 24.) - .5) * 24.;
@@ -90,7 +94,7 @@ void main(){
   float gridL = (1. - smoothstep(0., 1.2, min(g2.x, g2.y))) * (.16 + .14 * dash);
   vec2 g3 = abs(fract(gp / 6.) - .5) * 6.;
   float fine = (1. - smoothstep(0., .7, min(g3.x, g3.y))) * .05;
-  grid = mix(grid, gridL + fine, lens);
+  grid = mix(grid, (gridL + fine) * em, lens);
   col += brass * grid; a += grid;
 
   // construction marks: traced in behind a bright pen head, erased as the type sets
@@ -252,6 +256,13 @@ export class Draft {
       [o.base, o.xh, o.cap].forEach((y, j) => {
         m.globalAlpha = j === 0 ? 0.55 : 0.32;
         m.setLineDash(j === 0 ? [] : [3, 4]);
+        // guides fade in and out at their ends instead of stopping dead
+        const gr = m.createLinearGradient(padX - 24, 0, W - padX - 44, 0);
+        gr.addColorStop(0, 'rgba(255,255,255,0)');
+        gr.addColorStop(0.08, '#fff');
+        gr.addColorStop(0.9, '#fff');
+        gr.addColorStop(1, 'rgba(255,255,255,0)');
+        m.strokeStyle = gr;
         m.beginPath();
         m.moveTo(padX - 24, y + 0.5);
         m.lineTo(W - padX - 44, y + 0.5);
@@ -259,6 +270,7 @@ export class Draft {
         m.stroke();
       });
       m.setLineDash([]);
+      m.strokeStyle = '#fff';
       m.globalAlpha = 0.6;
       // vertical ticks at word starts
       let x = padX;

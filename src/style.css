@@ -81,7 +81,7 @@ a:hover .swap > span + span, button:hover .swap > span + span { transform: trans
 
 /* 2 · about */
 .about { padding: 26vh 44px 20vh; }
-.about__draft { position: relative; margin: 6vh -44px 0; height: 52vh; }
+.about__draft { position: relative; margin: -6vh -44px -12vh; height: 76vh; }
 .about__cols { display: grid; grid-template-columns: 1fr 1fr; gap: 64px; max-width: 920px; margin: 10vh 0 0 auto; font-size: 18px; line-height: 1.6; color: #c9c1b3; }
 
 /* 3 · plates */
