@@ -17,30 +17,46 @@ const PW = 1.0,
   SX = 64,
   SY = 20;
 
-function pageCanvas(p, back = false) {
-  // drawn at 1100px wide; phones get a smaller copy of the same layout
+// paper tooth: one small tile of noise, repeated, instead of touching every pixel
+let tooth = null;
+function toothTile() {
+  if (tooth) return tooth;
+  tooth = document.createElement('canvas');
+  tooth.width = tooth.height = 96;
+  const t = tooth.getContext('2d');
+  const d = t.createImageData(96, 96);
+  for (let i = 0; i < d.data.length; i += 4) {
+    const n = 128 + (Math.random() - 0.5) * 14;
+    d.data[i] = d.data[i + 1] = d.data[i + 2] = n;
+    d.data[i + 3] = 255;
+  }
+  t.putImageData(d, 0, 0);
+  return tooth;
+}
+
+// laid out on an 1100px-wide page; k scales the bitmap (phones draw it small to begin with)
+function pageCanvas(p, back = false, k = 1) {
   const W = 1100,
     H = Math.round((W * PH) / PW);
   const c = document.createElement('canvas');
-  c.width = W;
-  c.height = H;
+  c.width = Math.round(W * k);
+  c.height = Math.round(H * k);
   const g = c.getContext('2d');
+  g.scale(k, k);
   // heavy cotton stock: warm, with a little tooth
   g.fillStyle = p.cover ? '#e6dccb' : '#efe8dc';
   g.fillRect(0, 0, W, H);
-  const img = g.getImageData(0, 0, W, H);
-  for (let i = 0; i < img.data.length; i += 4) {
-    const n = (Math.random() - 0.5) * 7;
-    img.data[i] += n;
-    img.data[i + 1] += n;
-    img.data[i + 2] += n;
-  }
-  g.putImageData(img, 0, 0);
+  g.save();
+  g.globalCompositeOperation = 'overlay';
+  g.globalAlpha = 0.5;
+  g.fillStyle = g.createPattern(toothTile(), 'repeat');
+  g.fillRect(0, 0, W, H);
+  g.restore();
   if (back) {
     // the print shows through the stock (the back face mirrors it on its own)
     g.save();
     g.globalAlpha = 0.03;
-    g.drawImage(pageCanvas(p), 0, 0);
+    g.drawImage(pageCanvas(p, false, k), 0, 0, W, H);
     g.restore();
     return c;
   }
@@ -86,14 +102,6 @@ function pageCanvas(p, back = false) {
   return c;
 }
 
-function shrink(c, k) {
-  if (k >= 1) return c;
-  const o = document.createElement('canvas');
-  o.width = Math.round(c.width * k);
-  o.height = Math.round(c.height * k);
-  o.getContext('2d').drawImage(c, 0, 0, o.width, o.height);
-  return o;
-}
 
 // phones: paper and desk lit by the lamp in a small hand-written shader. The scene uses
 // no built-in three.js lights at all (those crashed an iPhone's GPU here)
@@ -197,14 +205,14 @@ export class Sheets {
     this.sheets = PAGES.map((p, i) => {
       const geo = new THREE.PlaneGeometry(PW, PH, SX, SY);
       geo.translate(PW / 2, 0, 0); // hinge on the left edge
-      const front = new THREE.CanvasTexture(shrink(pageCanvas(p), S.touch ? 0.7 : 1));
+      const front = new THREE.CanvasTexture(pageCanvas(p, false, S.touch ? 0.62 : 1));
       front.colorSpace = THREE.SRGBColorSpace;
       front.anisotropy = lite ? 1 : 8;
       if (lite) {
         front.generateMipmaps = false;
         front.minFilter = THREE.LinearFilter;
       }
-      const back = new THREE.CanvasTexture(shrink(pageCanvas(p, true), S.touch ? 0.5 : 1));
+      const back = new THREE.CanvasTexture(pageCanvas(p, true, S.touch ? 0.4 : 1));
       back.colorSpace = THREE.SRGBColorSpace;
       const g = new THREE.Group();
       if (lite) {

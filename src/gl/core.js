@@ -140,28 +140,8 @@ export function createGL(canvas) {
     if (e.pointerType !== 'mouse') S.fingerAt = S.time;
   });
 
-  // on phones the tilt of the device is the cursor: it moves the light and the cameras.
-  // the rest angle re-centres slowly, so however the phone is held, it starts in the middle
   S.touch = matchMedia('(hover: none), (pointer: coarse)').matches;
   S.fingerAt = -9;
-  if (S.touch) {
-    let base = null;
-    addEventListener('deviceorientation', (e) => {
-      if (e.beta == null || e.gamma == null) return;
-      const b = Math.max(-60, Math.min(90, e.beta)),
-        g = e.gamma;
-      if (!base) base = { b, g };
-      base.b += (b - base.b) * 0.004;
-      base.g += (g - base.g) * 0.004;
-      S.tilt = { x: Math.max(-1, Math.min(1, (g - base.g) / 22)), y: Math.max(-1, Math.min(1, (b - base.b) / 22)) };
-    });
-    // iOS asks once, on the first touch
-    const ask = () => {
-      removeEventListener('touchend', ask);
-      window.DeviceOrientationEvent?.requestPermission?.().catch(() => {});
-    };
-    addEventListener('touchend', ask);
-  }
 
   S.add = (v) => {
     S.views.push(v);
@@ -171,9 +151,9 @@ export function createGL(canvas) {
   S.step = (dt) => {
     S.dt = dt;
     S.time += dt;
-    // a finger on the glass wins for a moment, otherwise the tilt leads
+    // phones have no cursor: the light drifts slowly on its own, a finger takes it for a moment
     if (S.touch && S.time - S.fingerAt > 1.2) {
-      const t = S.tilt || { x: Math.sin(S.time * 0.35) * 0.35, y: Math.cos(S.time * 0.27) * 0.25 };
+      const t = { x: Math.sin(S.time * 0.35) * 0.35, y: Math.cos(S.time * 0.27) * 0.25 };
       S.mouse.x = S.w * (0.5 + t.x * 0.45);
       S.mouse.y = S.h * (0.45 + t.y * 0.4);
     }
@@ -202,6 +182,10 @@ export function createGL(canvas) {
       const top = Math.max(0, r.top);
       const bottom = Math.min(S.h, r.bottom);
       if (bottom - top < 1) continue;
+      if (!v.drawn) {
+        v.drawn = true;
+        window.__dbg?.('desenho ' + (v.key || v.constructor.name));
+      }
       v.prerender?.(renderer, r);
       renderer.setRenderTarget(null);
       renderer.setScissorTest(true);
